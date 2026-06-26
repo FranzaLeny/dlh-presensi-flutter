@@ -1,0 +1,92 @@
+// ====================================
+// Model: PengaturanPresensi — Pengaturan per SKPD
+// ====================================
+
+/// Pengaturan presensi per SKPD (kantor)
+class PengaturanPresensi {
+  final String id;
+  final String skpdId;
+  final String? namaKantor;
+  final double latitude;
+  final double longitude;
+  final int radius; // dalam meter
+  final String jamMasukMulai; // format: HH:mm:ss
+  final String jamMasukSelesai;
+  final String jamIstirahatMulai;
+  final String jamIstirahatSelesai;
+  final String jamPulangMulai;
+  final String jamPulangSelesai;
+  final String? updatedAt;
+
+  const PengaturanPresensi({
+    required this.id,
+    required this.skpdId,
+    this.namaKantor,
+    required this.latitude,
+    required this.longitude,
+    this.radius = 100,
+    this.jamMasukMulai = '07:30:00',
+    this.jamMasukSelesai = '08:30:00',
+    this.jamIstirahatMulai = '12:00:00',
+    this.jamIstirahatSelesai = '13:00:00',
+    this.jamPulangMulai = '16:00:00',
+    this.jamPulangSelesai = '17:00:00',
+    this.updatedAt,
+  });
+
+  /// Dari response API (JSON camelCase)
+  factory PengaturanPresensi.fromJson(Map<String, dynamic> json) {
+    return PengaturanPresensi(
+      id: (json['id'] ?? json['skpdId'] ?? 'default') as String,
+      skpdId: json['skpdId'] as String,
+      namaKantor: json['namaKantor'] as String?,
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+      radius: (json['radius'] as num?)?.toInt() ?? 100,
+      jamMasukMulai: (json['jamMasukMulai'] as String?) ?? '07:30:00',
+      jamMasukSelesai: (json['jamMasukSelesai'] as String?) ?? '08:30:00',
+      jamIstirahatMulai: (json['jamIstirahatMulai'] as String?) ?? '12:00:00',
+      jamIstirahatSelesai:
+          (json['jamIstirahatSelesai'] as String?) ?? '13:00:00',
+      jamPulangMulai: (json['jamPulangMulai'] as String?) ?? '16:00:00',
+      jamPulangSelesai: (json['jamPulangSelesai'] as String?) ?? '17:00:00',
+      updatedAt: json['updatedAt'] as String?,
+    );
+  }
+
+  /// Dari row SQLite (snake_case)
+  factory PengaturanPresensi.fromRow(Map<String, dynamic> row) {
+    return PengaturanPresensi(
+      id: row['id'] as String,
+      skpdId: row['skpd_id'] as String,
+      namaKantor: row['nama_kantor'] as String?,
+      latitude: (row['latitude'] as num).toDouble(),
+      longitude: (row['longitude'] as num).toDouble(),
+      radius: (row['radius'] as num).toInt(),
+      jamMasukMulai: row['jam_masuk_mulai'] as String,
+      jamMasukSelesai: row['jam_masuk_selesai'] as String,
+      jamIstirahatMulai: row['jam_istirahat_mulai'] as String,
+      jamIstirahatSelesai: row['jam_istirahat_selesai'] as String,
+      jamPulangMulai: row['jam_pulang_mulai'] as String,
+      jamPulangSelesai: row['jam_pulang_selesai'] as String,
+      updatedAt: row['updated_at'] as String?,
+    );
+  }
+
+  /// Ke format SQLite (snake_case)
+  Map<String, dynamic> toRow() => {
+        'id': id,
+        'skpd_id': skpdId,
+        'nama_kantor': namaKantor,
+        'latitude': latitude,
+        'longitude': longitude,
+        'radius': radius,
+        'jam_masuk_mulai': jamMasukMulai,
+        'jam_masuk_selesai': jamMasukSelesai,
+        'jam_istirahat_mulai': jamIstirahatMulai,
+        'jam_istirahat_selesai': jamIstirahatSelesai,
+        'jam_pulang_mulai': jamPulangMulai,
+        'jam_pulang_selesai': jamPulangSelesai,
+        'updated_at': updatedAt ?? DateTime.now().toIso8601String(),
+      };
+}

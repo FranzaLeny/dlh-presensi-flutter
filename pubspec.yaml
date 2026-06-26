@@ -1,0 +1,58 @@
+name: presensi_dlh
+description: "Aplikasi Presensi Digital Dinas Lingkungan Hidup"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Routing
+  go_router: ^15.1.2
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # HTTP
+  dio: ^5.8.0
+
+  # Database Lokal
+  sqflite: ^2.4.2
+  path: ^1.9.1
+
+  # Secure Storage
+  flutter_secure_storage: ^9.2.4
+
+  # Lokasi & Permission
+  geolocator: ^13.0.2
+  permission_handler: ^11.4.0
+
+  # Kamera
+  camera: ^0.11.1
+
+  # File System
+  path_provider: ^2.1.6
+
+  # Konektivitas
+  connectivity_plus: ^6.1.4
+
+  # Kriptografi RSA
+  pointycastle: ^3.9.1
+  asn1lib: ^1.5.8
+
+  # Device Info
+  device_info_plus: ^11.4.0
+
+  # Date Formatting
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
