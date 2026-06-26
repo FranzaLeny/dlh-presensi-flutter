@@ -58,7 +58,7 @@ String signPayload(dynamic payload, String privateKeyPem) {
 
   final jsonBytes = utf8.encode(jsonEncode(payload));
   final signature =
-      signer.generateSignature(Uint8List.fromList(jsonBytes)) as RSASignature;
+      signer.generateSignature(Uint8List.fromList(jsonBytes));
 
   return base64Encode(signature.bytes);
 }
@@ -67,7 +67,7 @@ String signPayload(dynamic payload, String privateKeyPem) {
 
 String _encodePublicKeyToPem(RSAPublicKey publicKey) {
   final algorithmSequence = ASN1Sequence()
-    ..add(ASN1ObjectIdentifier.fromName('rsaEncryption'))
+    ..add(ASN1ObjectIdentifier.fromComponentString('1.2.840.113549.1.1.1'))
     ..add(ASN1Null());
 
   final publicKeySequence = ASN1Sequence()
@@ -112,7 +112,7 @@ RSAPrivateKey _decodePrivateKeyFromPem(String pem) {
 
   final asn1Parser = ASN1Parser(Uint8List.fromList(bytes));
   final topLevelSequence = asn1Parser.nextObject() as ASN1Sequence;
-  final elements = topLevelSequence.elements!;
+  final elements = topLevelSequence.elements;
 
   final modulus = (elements[1] as ASN1Integer).valueAsBigInteger;
   final privateExponent = (elements[3] as ASN1Integer).valueAsBigInteger;

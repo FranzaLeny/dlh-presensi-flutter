@@ -57,20 +57,36 @@ class PengaturanPresensi {
   /// Dari row SQLite (snake_case)
   factory PengaturanPresensi.fromRow(Map<String, dynamic> row) {
     return PengaturanPresensi(
-      id: row['id'] as String,
-      skpdId: row['skpd_id'] as String,
-      namaKantor: row['nama_kantor'] as String?,
-      latitude: (row['latitude'] as num).toDouble(),
-      longitude: (row['longitude'] as num).toDouble(),
-      radius: (row['radius'] as num).toInt(),
-      jamMasukMulai: row['jam_masuk_mulai'] as String,
-      jamMasukSelesai: row['jam_masuk_selesai'] as String,
-      jamIstirahatMulai: row['jam_istirahat_mulai'] as String,
-      jamIstirahatSelesai: row['jam_istirahat_selesai'] as String,
-      jamPulangMulai: row['jam_pulang_mulai'] as String,
-      jamPulangSelesai: row['jam_pulang_selesai'] as String,
-      updatedAt: row['updated_at'] as String?,
+      id: row['id']?.toString() ?? '',
+      skpdId: row['skpd_id']?.toString() ?? '',
+      namaKantor: row['nama_kantor']?.toString(),
+      latitude: _parseDouble(row['latitude']),
+      longitude: _parseDouble(row['longitude']),
+      radius: _parseInt(row['radius'], defaultValue: 100),
+      jamMasukMulai: row['jam_masuk_mulai']?.toString() ?? '07:30:00',
+      jamMasukSelesai: row['jam_masuk_selesai']?.toString() ?? '08:30:00',
+      jamIstirahatMulai: row['jam_istirahat_mulai']?.toString() ?? '12:00:00',
+      jamIstirahatSelesai: row['jam_istirahat_selesai']?.toString() ?? '13:00:00',
+      jamPulangMulai: row['jam_pulang_mulai']?.toString() ?? '16:00:00',
+      jamPulangSelesai: row['jam_pulang_selesai']?.toString() ?? '17:00:00',
+      updatedAt: row['updated_at']?.toString(),
     );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  static int _parseInt(dynamic value, {int defaultValue = 0}) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? defaultValue;
+    return defaultValue;
   }
 
   /// Ke format SQLite (snake_case)

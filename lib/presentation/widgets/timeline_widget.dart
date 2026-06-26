@@ -32,25 +32,25 @@ class TimelineWidget extends StatelessWidget {
         label: 'Presensi Masuk',
         log: masukLog,
         color: AppColors.absenMasuk,
-        emoji: '🟢',
+        icon: Icons.login_rounded,
       ),
       _TimelineStep(
         label: 'Keluar Istirahat',
         log: mulaiIstirahatLog,
         color: AppColors.absenIstirahatMulai,
-        emoji: '☕',
+        icon: Icons.coffee_rounded,
       ),
       _TimelineStep(
         label: 'Masuk Istirahat',
         log: selesaiIstirahatLog,
         color: AppColors.absenIstirahatSelesai,
-        emoji: '🏃',
+        icon: Icons.directions_run_rounded,
       ),
       _TimelineStep(
         label: 'Presensi Pulang',
         log: pulangLog,
         color: AppColors.absenPulang,
-        emoji: '🔴',
+        icon: Icons.logout_rounded,
       ),
     ];
 
@@ -137,23 +137,33 @@ class TimelineWidget extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${step.emoji} ${step.label}',
+                            step.label,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: textColor,
                             ),
                           ),
-                          Text(
-                            timeStr,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures()
-                              ],
-                              color: hasLog ? textColor : subtextColor,
-                            ),
+                          Row(
+                            children: [
+                              Text(
+                                timeStr,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                  color: hasLog ? textColor : subtextColor,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                step.icon,
+                                size: 16,
+                                color: step.color,
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -220,12 +230,12 @@ class _TimelineStep {
   final String label;
   final PresensiLog? log;
   final Color color;
-  final String emoji;
+  final IconData icon;
 
   const _TimelineStep({
     required this.label,
     this.log,
     required this.color,
-    required this.emoji,
+    required this.icon,
   });
 }

@@ -43,8 +43,9 @@ class GeofenceState {
   }
 }
 
-class GeofenceNotifier extends StateNotifier<GeofenceState> {
-  GeofenceNotifier() : super(const GeofenceState());
+class GeofenceNotifier extends Notifier<GeofenceState> {
+  @override
+  GeofenceState build() => const GeofenceState();
 
   // Cache
   int _cacheLastCheckTime = 0;
@@ -98,19 +99,25 @@ class GeofenceNotifier extends StateNotifier<GeofenceState> {
 }
 
 final geofenceProvider =
-    StateNotifierProvider<GeofenceNotifier, GeofenceState>((ref) {
-  return GeofenceNotifier();
-});
+    NotifierProvider<GeofenceNotifier, GeofenceState>(GeofenceNotifier.new);
 
 // ── Sync Provider ────────────────────────────────────────────────────
 
-class SyncStatusNotifier extends StateNotifier<SyncStatus> {
+class SyncStatusNotifier extends Notifier<SyncStatus> {
   Timer? _refreshTimer;
   StreamSubscription? _connectivitySubscription;
 
-  SyncStatusNotifier() : super(const SyncStatus()) {
+  @override
+  SyncStatus build() {
+    ref.onDispose(() {
+      _refreshTimer?.cancel();
+      _connectivitySubscription?.cancel();
+    });
+
     _startAutoRefresh();
     _startAutoSync();
+    
+    return const SyncStatus();
   }
 
   void _startAutoRefresh() {
@@ -140,7 +147,7 @@ class SyncStatusNotifier extends StateNotifier<SyncStatus> {
     try {
       final pegawai = await AuthService.getPegawai();
       final skpdId = pegawai?.skpdId;
-      await runSyncEngine(skpdId: skpdId);
+      await runFullSync(skpdId: skpdId);
       await refreshStatus();
     } catch (_) {}
   }
@@ -158,7 +165,7 @@ class SyncStatusNotifier extends StateNotifier<SyncStatus> {
     try {
       final pegawai = await AuthService.getPegawai();
       final skpdId = pegawai?.skpdId;
-      final result = await runSyncEngine(skpdId: skpdId);
+      final result = await runFullSync(skpdId: skpdId);
       final pendingCount = await PresensiDao.countUnsynced();
       state = SyncStatus(
         pendingCount: pendingCount,
@@ -177,15 +184,7 @@ class SyncStatusNotifier extends StateNotifier<SyncStatus> {
     }
   }
 
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    _connectivitySubscription?.cancel();
-    super.dispose();
-  }
 }
 
 final syncStatusProvider =
-    StateNotifierProvider<SyncStatusNotifier, SyncStatus>((ref) {
-  return SyncStatusNotifier();
-});
+    NotifierProvider<SyncStatusNotifier, SyncStatus>(SyncStatusNotifier.new);

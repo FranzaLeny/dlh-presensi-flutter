@@ -20,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -33,14 +34,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      _showError('NIP/username dan password wajib diisi');
+      _showError('Email/Username dan password wajib diisi');
       return;
     }
 
     setState(() => _loading = true);
     try {
-      final pegawai = await AuthService.login(username, password);
-      if (mounted && pegawai != null) {
+      await AuthService.login(username, password);
+      if (mounted) {
         context.go('/presensi');
       }
     } catch (err) {
@@ -149,9 +150,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // NIP / Username
+                        // Email / Username
                         Text(
-                          'NIP / Username',
+                          'Email / Username',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -169,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontSize: 16,
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Masukkan NIP atau username',
+                            hintText: 'Masukkan email atau username',
                             hintStyle: const TextStyle(color: Color(0xFF666666)),
                             filled: true,
                             fillColor: Colors.white.withValues(alpha: 0.06),
@@ -213,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextField(
                           controller: _passwordController,
                           enabled: !_loading,
-                          obscureText: true,
+                          obscureText: _obscurePassword,
                           onSubmitted: (_) => _handleLogin(),
                           style: const TextStyle(
                             color: Colors.white,
@@ -224,6 +225,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             hintStyle: const TextStyle(color: Color(0xFF666666)),
                             filled: true,
                             fillColor: Colors.white.withValues(alpha: 0.06),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(

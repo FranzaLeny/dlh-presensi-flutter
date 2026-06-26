@@ -27,12 +27,12 @@ Dio _createApiClient() {
         final apiKey = await _storage.read(key: 'device_api_key');
         if (apiKey != null) {
           options.headers['x-api-key'] = apiKey;
-        }
-
-        // 2. Bearer token fallback
-        final token = await _storage.read(key: 'better_auth_token');
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
+        } else {
+          // 2. Bearer token fallback jika belum ada API key
+          final token = await _storage.read(key: 'better_auth_token');
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
         }
       } catch (err) {
         // ignore — log only

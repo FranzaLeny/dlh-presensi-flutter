@@ -24,11 +24,17 @@ class AuthService {
   AuthService._();
 
   // ── Step 1: Login NIP/username → fetch pegawai → register device ──────
-  static Future<Pegawai> login(String username, String password) async {
+  static Future<Pegawai> login(String identifier, String password) async {
+    final isEmail = identifier.contains('@');
+    final endpoint = isEmail ? '/auth/sign-in/email' : '/auth/sign-in/username';
+    final payload = isEmail
+        ? {'email': identifier, 'password': password}
+        : {'username': identifier, 'password': password};
+
     // POST ke Better Auth sign-in endpoint
     final response = await apiClient.post(
-      '/auth/sign-in/username',
-      data: {'username': username, 'password': password},
+      endpoint,
+      data: payload,
     );
 
     final data = response.data;
@@ -47,7 +53,14 @@ class AuthService {
     await _storage.write(key: _pegawaiKey, value: jsonEncode(pegawai.toJson()));
 
     // Register device API key
-    await registerDeviceKey();
+    try {
+      await registerDeviceKey();
+    } catch (e) {
+      // Jika registerDeviceKey gagal (misal karena gagal generate keypair)
+      // maka batalkan proses login dengan menghapus session yang baru saja dibuat
+      await logout();
+      rethrow;
+    }
 
     return pegawai;
   }
@@ -70,7 +83,8 @@ class AuthService {
         await _storage.write(key: 'device_private_key', value: privateKey);
         await _storage.write(key: 'device_public_key', value: publicKey);
       } catch (err) {
-        // Log error but continue
+        print('Error generating RSA keypair: $err');
+        throw Exception('Gagal membuat kunci keamanan perangkat.');
       }
     }
 
@@ -97,12 +111,15 @@ class AuthService {
       final data = response.data;
       if (data['key'] != null) {
         await _storage.write(key: _apiKeyKey, value: data['key'] as String);
+      } else {
+        throw Exception('Gagal mendapatkan API Key dari server.');
       }
+      
       if (data['id'] != null) {
         await _storage.write(key: _apiKeyIdKey, value: data['id'] as String);
       }
     } catch (err) {
-      // Tidak throw — login tetap berhasil walau API key gagal
+      throw Exception('Gagal mendaftarkan perangkat. $err');
     }
   }
 
@@ -131,7 +148,10 @@ class AuthService {
   static Future<bool> hasValidSession() async {
     final pegawai = await _storage.read(key: _pegawaiKey);
     final apiKey = await _storage.read(key: _apiKeyKey);
-    return pegawai != null && apiKey != null;
+    final apiKeyId = await _storage.read(key: _apiKeyIdKey);
+    final privateKey = await _storage.read(key: 'device_private_key');
+    
+    return pegawai != null && apiKey != null && apiKeyId != null && privateKey != null;
   }
 
   // ── Logout ─────────────────────────────────────────────────────────────
@@ -139,11 +159,9 @@ class AuthService {
     try {
       final keyId = await _storage.read(key: _apiKeyIdKey);
       if (keyId != null) {
-        await apiClient
-            .post('/auth/api-key/delete', data: {'keyId': keyId})
-            .catchError((_) => null);
+        await apiClient.post('/auth/api-key/delete', data: {'keyId': keyId});
       }
-      await apiClient.post('/auth/sign-out').catchError((_) => null);
+      await apiClient.post('/auth/sign-out');
     } catch (_) {}
 
     // Bersihkan semua data lokal

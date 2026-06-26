@@ -2,7 +2,6 @@
 // Model: PresensiLog — Data Log Presensi
 // ====================================
 
-import 'dart:convert';
 
 /// Jenis presensi
 enum TipePresensi {
@@ -51,7 +50,7 @@ enum TipePresensi {
       case 'selesai-istirahat':
         return TipePresensi.selesaiIstirahat;
       default:
-        throw ArgumentError('TipePresensi tidak dikenal: $value');
+        return TipePresensi.masuk; // Fallback to masuk instead of crashing
     }
   }
 }
@@ -123,23 +122,39 @@ class PresensiLog {
   /// Dari row SQLite (snake_case)
   factory PresensiLog.fromRow(Map<String, dynamic> row) {
     return PresensiLog(
-      id: row['id'] as String,
-      pegawaiId: row['pegawai_id'] as String,
-      pengaturanId: row['pengaturan_id'] as String,
-      tanggal: row['tanggal'] as String,
-      tipe: TipePresensi.fromString(row['tipe'] as String),
-      waktu: row['waktu'] as String,
-      latitude: (row['latitude'] as num?)?.toDouble() ?? 0.0,
-      longitude: (row['longitude'] as num?)?.toDouble() ?? 0.0,
-      fotoPath: row['foto_path'] as String?,
-      fotoUrl: row['foto_url'] as String?,
-      isLuarRadius: (row['is_luar_radius'] as num?)?.toInt() ?? 0,
-      status: (row['status'] as num?)?.toInt() ?? 2,
-      keterangan: row['keterangan'] as String?,
-      isSynced: row['is_synced'] == 1,
-      deviceId: row['device_id'] as String?,
-      namaVerifikator: row['nama_verifikator'] as String?,
+      id: row['id']?.toString() ?? '',
+      pegawaiId: row['pegawai_id']?.toString() ?? '',
+      pengaturanId: row['pengaturan_id']?.toString() ?? '',
+      tanggal: row['tanggal']?.toString() ?? '',
+      tipe: TipePresensi.fromString(row['tipe']?.toString() ?? 'masuk'),
+      waktu: row['waktu']?.toString() ?? '',
+      latitude: _parseDouble(row['latitude']),
+      longitude: _parseDouble(row['longitude']),
+      fotoPath: row['foto_path']?.toString(),
+      fotoUrl: row['foto_url']?.toString(),
+      isLuarRadius: _parseInt(row['is_luar_radius']),
+      status: _parseInt(row['status'], defaultValue: 2),
+      keterangan: row['keterangan']?.toString(),
+      isSynced: _parseInt(row['is_synced']) == 1,
+      deviceId: row['device_id']?.toString(),
+      namaVerifikator: row['nama_verifikator']?.toString(),
     );
+  }
+
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  static int _parseInt(dynamic value, {int defaultValue = 0}) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? defaultValue;
+    return defaultValue;
   }
 
   /// Ke format SQLite (snake_case)

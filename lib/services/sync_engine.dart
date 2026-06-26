@@ -10,7 +10,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/utils/crypto_utils.dart';
-import '../core/utils/error_utils.dart';
 import '../data/local/presensi_dao.dart';
 import '../data/local/settings_dao.dart';
 import '../data/models/pengaturan_presensi.dart';
@@ -60,36 +59,112 @@ Future<void> syncSettings({String? skpdId}) async {
 
     final data = response.data;
     if (data != null) {
+      final latitudeVal = data['latitude'];
+      final longitudeVal = data['longitude'];
+      final radiusVal = data['radius'];
+
       final pengaturan = PengaturanPresensi(
-        id: (data['id'] ?? data['skpdId'] ?? 'default') as String,
-        skpdId: data['skpdId'] as String,
-        namaKantor: data['namaKantor'] as String?,
-        latitude: (data['latitude'] as num).toDouble(),
-        longitude: (data['longitude'] as num).toDouble(),
-        radius: (data['radius'] as num?)?.toInt() ?? 100,
-        jamMasukMulai: (data['jamMasukMulai'] as String?) ?? '07:30:00',
-        jamMasukSelesai: (data['jamMasukSelesai'] as String?) ?? '08:30:00',
-        jamIstirahatMulai: (data['jamIstirahatMulai'] as String?) ?? '12:00:00',
+        id: (data['id'] ?? data['skpdId'] ?? 'default').toString(),
+        skpdId: data['skpdId'].toString(),
+        namaKantor: data['skpd']?['nama']?.toString(),
+        latitude: latitudeVal is num
+            ? latitudeVal.toDouble()
+            : double.tryParse(latitudeVal?.toString() ?? '0') ?? 0.0,
+        longitude: longitudeVal is num
+            ? longitudeVal.toDouble()
+            : double.tryParse(longitudeVal?.toString() ?? '0') ?? 0.0,
+        radius: radiusVal is num
+            ? radiusVal.toInt()
+            : int.tryParse(radiusVal?.toString() ?? '100') ?? 100,
+        jamMasukMulai: data['jamMasukMulai']?.toString() ?? '07:30:00',
+        jamMasukSelesai: data['jamMasukSelesai']?.toString() ?? '08:30:00',
+        jamIstirahatMulai: data['jamIstirahatMulai']?.toString() ?? '12:00:00',
         jamIstirahatSelesai:
-            (data['jamIstirahatSelesai'] as String?) ?? '13:00:00',
-        jamPulangMulai: (data['jamPulangMulai'] as String?) ?? '16:00:00',
-        jamPulangSelesai: (data['jamPulangSelesai'] as String?) ?? '17:00:00',
-        updatedAt: data['updatedAt'] as String?,
+            data['jamIstirahatSelesai']?.toString() ?? '13:00:00',
+        jamPulangMulai: data['jamPulangMulai']?.toString() ?? '16:00:00',
+        jamPulangSelesai: data['jamPulangSelesai']?.toString() ?? '17:00:00',
+        updatedAt: data['updatedAt']?.toString(),
       );
       await SettingsDao.save(pengaturan);
       await TimeService.syncTime();
     }
-  } catch (err) {
+  } catch (err, stack) {
+    print('Error in syncSettings: $err');
+    print(stack);
     // Log warning only
   }
 }
 
-/// Main sync engine — sinkronisasi log presensi ke backend
-Future<({int synced, int errors})> runSyncEngine({String? skpdId}) async {
-  // Prevent concurrent sync
+/// Menjalankan sinkronisasi penuh (Pengaturan + Unsynced Logs)
+Future<({int synced, int errors})> runFullSync({String? skpdId}) async {
   if (_isSyncing) return (synced: 0, errors: 0);
-
   _isSyncing = true;
+  try {
+    await syncSettings(skpdId: skpdId);
+    return await syncUnsyncedLogs();
+  } finally {
+    _isSyncing = false;
+  }
+}
+
+/// Alias ke syncSettings agar konsisten namanya
+Future<void> syncPengaturan({String? skpdId}) => syncSettings(skpdId: skpdId);
+
+/// Hanya melakukan push/sinkronisasi semua log presensi yang belum tersinkronisasi di lokal
+Future<({int synced, int errors})> syncUnsyncedLogs() async {
+  final logs = await PresensiDao.getUnsynced();
+  return _syncLogBatch(logs);
+}
+
+/// Hanya melakukan push/sinkronisasi sisa data presensi yang belum tersinkronisasi pada bulan tertentu,
+/// lalu menarik (Pull) data riwayat yang valid dari server untuk bulan tersebut.
+Future<({int synced, int errors})> syncLogsBulanan(int year, int month) async {
+  final pegawai = await AuthService.getPegawai();
+  if (pegawai == null) return (synced: 0, errors: 0);
+
+  // 1. PUSH: Pastikan data lokal yang pending di-push ke server dulu
+  final logs = await PresensiDao.getByMonth(pegawai.id, year, month);
+  final unsyncedLogs = logs.where((l) => !l.isSynced).toList();
+  final pushResult = await _syncLogBatch(unsyncedLogs);
+
+  // 2. PULL: Tarik riwayat presensi bulan ini dari server
+  try {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (!connectivityResult.contains(ConnectivityResult.none)) {
+      // Hitung tanggal 1 dan tanggal terakhir bulan
+      final startOfMonth = DateTime(year, month, 1);
+      final endOfMonth = DateTime(year, month + 1, 0);
+      
+      // Ambil data dari server (berdasarkan instruksi user: akan di-handle dari sisi user di backend /log yg sama)
+      final response = await apiClient.get(
+        '/umum/presensi/log',
+        queryParameters: {
+          'tanggalMulai': startOfMonth.toIso8601String().split('T')[0],
+          'tanggalSelesai': endOfMonth.toIso8601String().split('T')[0],
+        },
+      );
+      
+      final data = response.data;
+      if (data != null && data['items'] is List) {
+        final List<dynamic> items = data['items'];
+        final serverLogs = items.map((item) => PresensiLog.fromJson(item)).toList();
+        
+        // 3. Simpan ke lokal dan timpa history lama
+        await PresensiDao.replaceHistoryByMonth(pegawai.id, year, month, serverLogs);
+      }
+    }
+  } catch (err) {
+    print('Gagal pull sync: $err');
+    // Jika gagal pull, kita tetap mengembalikan hasil push
+  }
+
+  return pushResult;
+}
+
+/// Helper internal untuk mengirim sejumlah log presensi
+Future<({int synced, int errors})> _syncLogBatch(List<PresensiLog> logsToSync) async {
+  if (logsToSync.isEmpty) return (synced: 0, errors: 0);
+
   var syncedCount = 0;
   var errorCount = 0;
 
@@ -100,15 +175,8 @@ Future<({int synced, int errors})> runSyncEngine({String? skpdId}) async {
       return (synced: 0, errors: 0);
     }
 
-    // Ambil data pengaturan presensi terbaru
-    await syncSettings(skpdId: skpdId);
-
-    // 2. Ambil log belum sync
-    final unsyncedLogs = await PresensiDao.getUnsynced();
-    if (unsyncedLogs.isEmpty) return (synced: 0, errors: 0);
-
-    // 3. Upload foto untuk setiap log yang perlu
-    for (final log in unsyncedLogs) {
+    // 2. Upload foto untuk setiap log yang perlu
+    for (final log in logsToSync) {
       try {
         await _uploadPendingPhotos(log);
       } catch (_) {
@@ -116,16 +184,29 @@ Future<({int synced, int errors})> runSyncEngine({String? skpdId}) async {
       }
     }
 
-    // 4. Kirim batch ke backend
-    final refreshedLogs = await PresensiDao.getUnsynced();
+    // 3. Ambil log terbaru dari lokal (karena foto URL mungkin telah di-update)
+    final allUnsynced = await PresensiDao.getUnsynced();
+    final idsToSync = logsToSync.map((l) => l.id).toSet();
+    final refreshedLogs = allUnsynced.where((l) => idsToSync.contains(l.id)).toList();
+
     if (refreshedLogs.isEmpty) return (synced: 0, errors: errorCount);
 
     final deviceId = await _getDeviceId();
     final payloadItems = _logsToSyncItems(refreshedLogs, deviceId);
+
     if (payloadItems.isEmpty) return (synced: 0, errors: errorCount);
 
-    final apiKeyId = await _storage.read(key: 'device_api_key_id');
-    final privateKey = await _storage.read(key: 'device_private_key');
+    var apiKeyId = await _storage.read(key: 'device_api_key_id');
+    var privateKey = await _storage.read(key: 'device_private_key');
+
+    // Auto-repair if privateKey is missing but we have an apiKeyId (which means it failed to generate earlier)
+    if (apiKeyId != null && privateKey == null) {
+      await _storage.delete(key: 'device_api_key_id');
+      await AuthService.registerDeviceKey();
+      
+      apiKeyId = await _storage.read(key: 'device_api_key_id');
+      privateKey = await _storage.read(key: 'device_private_key');
+    }
 
     if (apiKeyId == null || privateKey == null) {
       return (synced: 0, errors: errorCount + refreshedLogs.length);
@@ -137,7 +218,7 @@ Future<({int synced, int errors})> runSyncEngine({String? skpdId}) async {
         payloadItems.map((item) => item.toJson()).toList(),
         privateKey,
       );
-    } catch (_) {
+    } catch (e) {
       return (synced: 0, errors: errorCount + refreshedLogs.length);
     }
 
@@ -154,7 +235,7 @@ Future<({int synced, int errors})> runSyncEngine({String? skpdId}) async {
       response.data as Map<String, dynamic>,
     );
 
-    // 5. Tandai sebagai synced
+    // 4. Tandai sebagai synced
     if (syncResponse.synced.isNotEmpty) {
       final syncedIds = syncResponse.synced.map((item) => item.id).toList();
       if (syncedIds.isNotEmpty) {
@@ -167,9 +248,7 @@ Future<({int synced, int errors})> runSyncEngine({String? skpdId}) async {
       errorCount += syncResponse.unSyncedIds.length;
     }
   } catch (error) {
-    errorCount++;
-  } finally {
-    _isSyncing = false;
+    errorCount += logsToSync.length; // asumsikan sisa log gagal jika ada koneksi terputus
   }
 
   return (synced: syncedCount, errors: errorCount);
@@ -178,14 +257,21 @@ Future<({int synced, int errors})> runSyncEngine({String? skpdId}) async {
 /// Upload foto yang pending untuk sebuah log
 Future<void> _uploadPendingPhotos(PresensiLog log) async {
   if (log.isLuarRadius > 0 && log.fotoPath != null && log.fotoUrl == null) {
-    final url = await _uploadFoto(log.fotoPath!, log.tipe.toDbString(), log.tanggal);
+    final url = await _uploadFoto(
+      log.fotoPath!,
+      log.tipe.toDbString(),
+      log.tanggal,
+    );
     await PresensiDao.updateFotoUrl(log.id, url);
   }
 }
 
 /// Upload foto ke Cloud Storage via presigned URL
 Future<String> _uploadFoto(
-    String localPath, String tipe, String tanggal) async {
+  String localPath,
+  String tipe,
+  String tanggal,
+) async {
   // 1. Minta presigned URL dari backend
   final response = await apiClient.post(
     '/umum/presensi/presigned-url',
@@ -208,10 +294,7 @@ Future<String> _uploadFoto(
     presigned.uploadUrl,
     data: Stream.fromIterable(bytes.map((e) => [e])),
     options: Options(
-      headers: {
-        'Content-Type': 'image/jpeg',
-        'Content-Length': bytes.length,
-      },
+      headers: {'Content-Type': 'image/jpeg', 'Content-Length': bytes.length},
     ),
   );
 
@@ -220,21 +303,22 @@ Future<String> _uploadFoto(
 }
 
 /// Konversi daftar PresensiLog ke array SyncLogItem
-List<SyncLogItem> _logsToSyncItems(
-    List<PresensiLog> logs, String deviceId) {
+List<SyncLogItem> _logsToSyncItems(List<PresensiLog> logs, String deviceId) {
   return logs
-      .map((log) => SyncLogItem(
-            id: log.id,
-            pegawaiId: log.pegawaiId,
-            pengaturanId: log.pengaturanId,
-            tanggal: log.tanggal,
-            tipe: log.tipe.toDbString(),
-            waktu: log.waktu,
-            latitude: log.latitude != 0 ? log.latitude.toString() : '0',
-            longitude: log.longitude != 0 ? log.longitude.toString() : '0',
-            fotoUrl: log.fotoUrl,
-            deviceId: deviceId,
-          ))
+      .map(
+        (log) => SyncLogItem(
+          id: log.id,
+          pegawaiId: log.pegawaiId,
+          pengaturanId: log.pengaturanId,
+          tanggal: log.tanggal,
+          tipe: log.tipe.toDbString(),
+          waktu: log.waktu,
+          latitude: log.latitude != 0 ? log.latitude.toString() : '0',
+          longitude: log.longitude != 0 ? log.longitude.toString() : '0',
+          fotoUrl: log.fotoUrl,
+          deviceId: deviceId,
+        ),
+      )
       .toList();
 }
 
@@ -251,42 +335,12 @@ Future<bool> syncSingleLog(String logId) async {
     throw Exception('Data presensi tidak ditemukan di lokal');
   }
 
-  await _uploadPendingPhotos(log);
-
-  final deviceId = await _getDeviceId();
-  final payloadItems = _logsToSyncItems([log], deviceId);
-
-  final apiKeyId = await _storage.read(key: 'device_api_key_id');
-  final privateKey = await _storage.read(key: 'device_private_key');
-
-  if (apiKeyId == null || privateKey == null) {
-    throw Exception('Kredensial enkripsi perangkat tidak ditemukan');
+  final result = await _syncLogBatch([log]);
+  if (result.errors > 0) {
+    throw Exception('Gagal mengirim data ke server');
   }
 
-  final signature = signPayload(
-    payloadItems.map((item) => item.toJson()).toList(),
-    privateKey,
-  );
-
-  final response = await apiClient.post(
-    '/umum/presensi/log',
-    data: {
-      'logs': payloadItems.map((item) => item.toJson()).toList(),
-      'apiKeyId': apiKeyId,
-      'signature': signature,
-    },
-  );
-
-  final syncResponse = SyncResponse.fromJson(
-    response.data as Map<String, dynamic>,
-  );
-
-  if (syncResponse.synced.any((item) => item.id == logId)) {
-    await PresensiDao.markAsSynced([logId]);
-    return true;
-  }
-
-  return false;
+  return result.synced > 0;
 }
 
 /// Cek apakah sync sedang berjalan

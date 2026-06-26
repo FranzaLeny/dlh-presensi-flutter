@@ -34,10 +34,7 @@ class SettingsDao {
   /// Ambil pengaturan pertama yang tersedia (fallback)
   static Future<PengaturanPresensi?> getFirst() async {
     final db = await getDatabase();
-    final rows = await db.query(
-      'pengaturan_presensi',
-      limit: 1,
-    );
+    final rows = await db.query('pengaturan_presensi', limit: 1);
     if (rows.isEmpty) return null;
     return PengaturanPresensi.fromRow(rows.first);
   }

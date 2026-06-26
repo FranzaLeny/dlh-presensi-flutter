@@ -3,10 +3,14 @@
 // ====================================
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/status.dart';
@@ -42,6 +46,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
   bool _retryingTime = false;
   Timer? _timer;
   CameraController? _cameraController;
+  FaceDetector? _faceDetector;
+  bool _isFaceDetected = false;
+  bool _isDetecting = false;
+  int _frameCount = 0;
 
   PresensiLog? get _masukLog =>
       _todayLogs.where((l) => l.tipe == TipePresensi.masuk).firstOrNull;
@@ -57,6 +65,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
   @override
   void initState() {
     super.initState();
+    _requestPermissions();
     _startTimer();
     _loadData();
   }
@@ -64,8 +73,19 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    if (_cameraController?.value.isStreamingImages == true) {
+      _cameraController?.stopImageStream();
+    }
     _cameraController?.dispose();
+    _faceDetector?.close();
     super.dispose();
+  }
+
+  Future<void> _requestPermissions() async {
+    await [
+      Permission.camera,
+      Permission.locationWhenInUse,
+    ].request();
   }
 
   void _startTimer() {
@@ -130,7 +150,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
             .checkGeofence(_pengaturan!);
       }
     } catch (err) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+        _showAlert('Error Memuat Data', 'Gagal memuat data: ${err.toString()}');
+      }
     }
   }
 
@@ -178,6 +201,13 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
   }
 
   Future<void> _initCamera() async {
+    final status = await Permission.camera.request();
+    if (status.isDenied || status.isPermanentlyDenied) {
+      _showAlert('Error', 'Izin kamera ditolak. Aktifkan izin kamera untuk presensi luar radius.');
+      if (mounted) setState(() => _showCamera = false);
+      return;
+    }
+
     final cameras = await availableCameras();
     final frontCamera = cameras.firstWhere(
       (c) => c.lensDirection == CameraLensDirection.front,
@@ -186,24 +216,114 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     _cameraController = CameraController(
       frontCamera,
       ResolutionPreset.medium,
+      enableAudio: false,
+      imageFormatGroup: Platform.isAndroid 
+          ? ImageFormatGroup.nv21 
+          : ImageFormatGroup.bgra8888,
     );
     await _cameraController!.initialize();
+
+    _faceDetector = FaceDetector(
+      options: FaceDetectorOptions(
+        enableTracking: false,
+        enableClassification: false,
+        enableContours: false,
+        enableLandmarks: false,
+      ),
+    );
+
+    _frameCount = 0;
+    _isFaceDetected = false;
+    _isDetecting = false;
+
+    await _cameraController!.startImageStream((CameraImage image) {
+      if (_isDetecting) return;
+      _frameCount++;
+      if (_frameCount % 5 != 0) return;
+      _processCameraImage(image);
+    });
   }
+
+  Future<void> _processCameraImage(CameraImage image) async {
+    if (_faceDetector == null || _cameraController == null || !mounted) return;
+    _isDetecting = true;
+
+    try {
+      final WriteBuffer allBytes = WriteBuffer();
+      for (final Plane plane in image.planes) {
+        allBytes.putUint8List(plane.bytes);
+      }
+      final bytes = allBytes.done().buffer.asUint8List();
+
+      final Size imageSize = Size(image.width.toDouble(), image.height.toDouble());
+      final InputImageRotation imageRotation = InputImageRotationValue.fromRawValue(
+              _cameraController!.description.sensorOrientation) ??
+          InputImageRotation.rotation0deg;
+
+      final InputImageFormat inputImageFormat =
+          InputImageFormatValue.fromRawValue(image.format.raw) ??
+              (Platform.isAndroid ? InputImageFormat.nv21 : InputImageFormat.bgra8888);
+
+      final inputImage = InputImage.fromBytes(
+        bytes: bytes,
+        metadata: InputImageMetadata(
+          size: imageSize,
+          rotation: imageRotation,
+          format: inputImageFormat,
+          bytesPerRow: image.planes.first.bytesPerRow,
+        ),
+      );
+
+      final faces = await _faceDetector!.processImage(inputImage);
+      
+      final hasFace = faces.length == 1;
+      
+      if (mounted && _isFaceDetected != hasFace) {
+        setState(() {
+          _isFaceDetected = hasFace;
+        });
+      }
+    } catch (_) {
+    } finally {
+      _isDetecting = false;
+    }
+  }
+
+  bool _isTakingPicture = false;
 
   Future<void> _handleTakeSelfie() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
+
+    if (!_isFaceDetected) {
+      _showAlert('Perhatian', 'Wajah tidak terdeteksi atau terdapat lebih dari satu wajah. Pastikan wajah Anda terlihat jelas dalam bingkai kamera.');
+      return;
+    }
+
+    if (_isTakingPicture) return;
+    _isTakingPicture = true;
+
     setState(() => _loading = true);
 
     try {
+      if (_cameraController!.value.isStreamingImages) {
+        await _cameraController!.stopImageStream();
+        // Beri waktu sedikit agar sistem kamera Android mereset state dari streaming menjadi idle
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
       final photo = await _cameraController!.takePicture();
       final savedPath =
           await CameraService.saveSelfie(photo.path, _cameraJenis.toDbString());
 
       setState(() => _showCamera = false);
+      if (_cameraController?.value.isStreamingImages == true) {
+        await _cameraController?.stopImageStream();
+      }
       _cameraController?.dispose();
       _cameraController = null;
+      _faceDetector?.close();
+      _faceDetector = null;
 
       final geoState = ref.read(geofenceProvider);
       if (geoState.result != null) {
@@ -215,9 +335,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
           fotoPath: savedPath,
         );
       }
-    } catch (_) {
-      _showAlert('Error', 'Gagal mengambil foto selfie');
+    } catch (e) {
+      _showAlert('Error', 'Gagal mengambil foto selfie: $e');
     } finally {
+      _isTakingPicture = false;
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -278,7 +399,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     setState(() => _todayLogs = [..._todayLogs, newLog]);
 
     // Trigger sync
-    runSyncEngine().catchError((_) => (synced: 0, errors: 0));
+    syncUnsyncedLogs().catchError((_) => (synced: 0, errors: 0));
 
     final timeFormatted = date_utils.formatTimeWithSeconds(nowDb);
     _showAlert(
@@ -574,7 +695,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
 
     return Column(
       children: [
-        if (actionButton != null) actionButton,
+        ?actionButton,
         if (_todayLogs
             .any((l) => !l.isSynced || l.status == Status.rejected))
           _buildRedoButton(),
@@ -662,15 +783,50 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('📍 Info Lokasi',
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Info Lokasi',
+                  style: TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                color: AppColors.primary,
+                onPressed: _loading
+                    ? null
+                    : () => ref
+                        .read(geofenceProvider.notifier)
+                        .checkGeofence(_pengaturan!, force: true),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
-          if (geoState.result != null) ...[
+          if (geoState.loading)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else if (geoState.error != null)
+            Text(
+              geoState.error!.replaceFirst('Exception: ', ''),
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.error,
+                fontWeight: FontWeight.w500,
+              ),
+            )
+          else if (geoState.result != null) ...[
             Text(
               'Jarak ke kantor: ${geoState.result!.distance >= 1000 ? '${(geoState.result!.distance / 1000).toStringAsFixed(1)} km' : '${geoState.result!.distance} m'}',
               style: TextStyle(fontSize: 14, color: subtextColor),
             ),
+            const SizedBox(height: 4),
             Text(
               geoState.result!.isInRadius
                   ? 'Lokasi dalam area kantor'
@@ -686,15 +842,6 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
           ] else
             Text('Lokasi belum diperiksa.',
                 style: TextStyle(fontSize: 14, color: subtextColor)),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: _loading
-                ? null
-                : () => ref
-                    .read(geofenceProvider.notifier)
-                    .checkGeofence(_pengaturan!, force: true),
-            child: const Text('Periksa Ulang Lokasi Saat Ini'),
-          ),
         ],
       ),
     );
@@ -714,7 +861,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('⚠️', style: TextStyle(fontSize: 48)),
+              const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
               const SizedBox(height: 16),
               Text(
                 'Perbedaan Waktu Terdeteksi',
@@ -751,7 +898,14 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text('🔄 Cek Ulang Waktu'),
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.refresh, size: 18, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text('Cek Ulang Waktu'),
+                          ],
+                        ),
                 ),
               ),
             ],
@@ -769,7 +923,14 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
           if (_cameraController != null &&
               _cameraController!.value.isInitialized)
             SizedBox.expand(
-              child: CameraPreview(_cameraController!),
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _cameraController!.value.previewSize?.height ?? 1,
+                  height: _cameraController!.value.previewSize?.width ?? 1,
+                  child: CameraPreview(_cameraController!),
+                ),
+              ),
             ),
           Positioned(
             left: 0,
@@ -784,15 +945,43 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _isFaceDetected ? AppColors.success.withValues(alpha: 0.8) : Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isFaceDetected ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isFaceDetected ? 'Wajah Terdeteksi' : 'Wajah tidak terdeteksi',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       TextButton(
-                        onPressed: () {
+                        onPressed: () async {
                           setState(() => _showCamera = false);
+                          if (_cameraController?.value.isStreamingImages == true) {
+                            await _cameraController?.stopImageStream();
+                          }
                           _cameraController?.dispose();
                           _cameraController = null;
+                          _faceDetector?.close();
+                          _faceDetector = null;
                         },
                         child: const Text('Batal',
                             style:
@@ -812,9 +1001,9 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                                   color: Colors.white)
                               : Container(
                                   margin: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: Colors.white,
+                                    color: _isFaceDetected ? Colors.white : Colors.white.withValues(alpha: 0.3),
                                   ),
                                 ),
                         ),

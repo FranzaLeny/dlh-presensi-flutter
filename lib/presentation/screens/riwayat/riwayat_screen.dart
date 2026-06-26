@@ -5,11 +5,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/status.dart';
 import '../../../core/utils/date_utils.dart' as date_utils;
 import '../../../data/local/presensi_dao.dart';
 import '../../../data/models/presensi_log.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/sync_engine.dart';
 
 class RiwayatScreen extends StatefulWidget {
   const RiwayatScreen({super.key});
@@ -43,6 +43,15 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  Future<void> _handleRefresh() async {
+    setState(() => _loading = true);
+    try {
+      final now = DateTime.now();
+      await syncLogsBulanan(now.year, now.month);
+    } catch (_) {}
+    await _loadData();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -62,16 +71,24 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
             style: TextStyle(fontWeight: FontWeight.w700, color: textColor)),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            tooltip: 'Tarik Data Server',
+            onPressed: _loading ? null : _handleRefresh,
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _loadData,
+              onRefresh: _handleRefresh,
               child: _logs.isEmpty
                   ? Center(
                       child: Text('Belum ada riwayat presensi',
                           style: TextStyle(color: subtextColor)))
                   : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(16),
                       itemCount: _logs.length,
                       itemBuilder: (context, index) {
@@ -94,8 +111,11 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Center(
-                                  child: Text(_getTypeEmoji(log.tipe),
-                                      style: const TextStyle(fontSize: 18)),
+                                  child: Icon(
+                                    _getTypeIcon(log.tipe),
+                                    color: _getTypeColor(log.tipe),
+                                    size: 20,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -128,27 +148,46 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                                       ],
                                     ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: log.isSynced
-                                          ? AppColors.success
-                                              .withValues(alpha: 0.15)
-                                          : AppColors.warning
-                                              .withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      log.isSynced ? 'Synced' : 'Pending',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: log.isSynced
-                                            ? AppColors.success
-                                            : AppColors.warning,
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (!log.isSynced)
+                                        GestureDetector(
+                                          onTap: _handleRefresh,
+                                          child: Container(
+                                            margin: const EdgeInsets.only(right: 6),
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.warning.withValues(alpha: 0.2),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.sync_rounded, size: 14, color: AppColors.warning),
+                                          ),
+                                        ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: log.isSynced
+                                              ? AppColors.success
+                                                  .withValues(alpha: 0.15)
+                                              : AppColors.warning
+                                                  .withValues(alpha: 0.15),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          log.isSynced ? 'Synced' : 'Pending',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600,
+                                            color: log.isSynced
+                                                ? AppColors.success
+                                                : AppColors.warning,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -174,16 +213,16 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
     }
   }
 
-  String _getTypeEmoji(TipePresensi tipe) {
+  IconData _getTypeIcon(TipePresensi tipe) {
     switch (tipe) {
       case TipePresensi.masuk:
-        return '🟢';
+        return Icons.login_rounded;
       case TipePresensi.mulaiIstirahat:
-        return '☕';
+        return Icons.coffee_rounded;
       case TipePresensi.selesaiIstirahat:
-        return '🏃';
+        return Icons.directions_run_rounded;
       case TipePresensi.pulang:
-        return '🔴';
+        return Icons.logout_rounded;
     }
   }
 }

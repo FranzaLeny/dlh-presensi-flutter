@@ -5,6 +5,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/status.dart';
+import '../../../core/utils/date_utils.dart' as date_utils;
 import '../../../data/local/presensi_dao.dart';
 import '../../../data/models/presensi_log.dart';
 import '../../../services/auth_service.dart';
@@ -19,12 +21,19 @@ class RekapScreen extends StatefulWidget {
 class _RekapScreenState extends State<RekapScreen> {
   int _selectedYear = DateTime.now().year;
   int _selectedMonth = DateTime.now().month;
+  String? _selectedDate; // Format: YYYY-MM-DD
   List<PresensiLog> _logs = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
+    // Default select hari ini jika bulannya sama
+    final now = DateTime.now();
+    if (_selectedYear == now.year && _selectedMonth == now.month) {
+      _selectedDate =
+          '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    }
     _loadData();
   }
 
@@ -37,9 +46,15 @@ class _RekapScreenState extends State<RekapScreen> {
         _selectedYear,
         _selectedMonth,
       );
-      if (mounted) setState(() => _logs = logs);
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _logs = logs;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _changeMonth(int delta) {
@@ -52,6 +67,9 @@ class _RekapScreenState extends State<RekapScreen> {
         _selectedMonth = 12;
         _selectedYear--;
       }
+      
+      // Auto select tanggal 1 jika ganti bulan
+      _selectedDate = '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-01';
     });
     _loadData();
   }
@@ -72,7 +90,6 @@ class _RekapScreenState extends State<RekapScreen> {
     for (final log in _logs) {
       grouped.putIfAbsent(log.tanggal, () => []).add(log);
     }
-    final sortedDates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     final months = [
       'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -156,59 +173,281 @@ class _RekapScreenState extends State<RekapScreen> {
           ),
           const SizedBox(height: 16),
 
-          // ── List ────────────────────────────────────────────
+          // ── Calendar & Details ──────────────────────────────
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : sortedDates.isEmpty
-                    ? Center(
-                        child: Text('Belum ada data',
-                            style: TextStyle(color: subtextColor)))
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: sortedDates.length,
-                        itemBuilder: (context, index) {
-                          final date = sortedDates[index];
-                          final dayLogs = grouped[date]!;
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: cardBg,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(date,
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        color: textColor)),
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 8,
-                                  children: dayLogs.map((log) {
-                                    return Chip(
-                                      label: Text(
-                                        log.tipe.displayLabel,
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                      backgroundColor: _getTypeColor(log.tipe)
-                                          .withValues(alpha: 0.15),
-                                      side: BorderSide.none,
-                                      padding: EdgeInsets.zero,
-                                      visualDensity: VisualDensity.compact,
-                                    );
-                                  }).toList(),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildCalendar(grouped, textColor, cardBg),
+                        const SizedBox(height: 16),
+                        _buildDateDetails(grouped, textColor, cardBg),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCalendar(
+      Map<String, List<PresensiLog>> grouped, Color textColor, Color cardBg) {
+    final firstDay = DateTime(_selectedYear, _selectedMonth, 1);
+    final daysInMonth = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
+    final firstWeekday = firstDay.weekday; // 1 (Mon) to 7 (Sun)
+
+    final daysOfWeek = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+
+    final List<Widget> dayHeaders = daysOfWeek.map((day) {
+      return Expanded(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              day,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: textColor.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+        ),
+      );
+    }).toList();
+
+    List<Widget> rows = [Row(children: dayHeaders)];
+
+    List<Widget> currentRow = [];
+    // empty cells
+    for (int i = 1; i < firstWeekday; i++) {
+      currentRow.add(const Expanded(child: SizedBox.shrink()));
+    }
+
+    for (int day = 1; day <= daysInMonth; day++) {
+      final dateStr =
+          '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+      final hasData = grouped.containsKey(dateStr);
+      final isSelected = _selectedDate == dateStr;
+
+      currentRow.add(
+        Expanded(
+          child: GestureDetector(
+            onTap: () {
+              setState(() => _selectedDate = dateStr);
+            },
+            child: Container(
+              margin: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.primary
+                    : (hasData
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : Colors.transparent),
+                borderRadius: BorderRadius.circular(8),
+                border: isSelected || hasData
+                    ? null
+                    : Border.all(color: cardBg.withValues(alpha: 0.5)),
+              ),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        day.toString(),
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : textColor,
+                          fontWeight: isSelected || hasData
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      if (hasData)
+                        Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      if (currentRow.length == 7) {
+        rows.add(Row(children: currentRow));
+        currentRow = [];
+      }
+    }
+
+    if (currentRow.isNotEmpty) {
+      while (currentRow.length < 7) {
+        currentRow.add(const Expanded(child: SizedBox.shrink()));
+      }
+      rows.add(Row(children: currentRow));
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(children: rows),
+    );
+  }
+
+  Widget _buildDateDetails(
+      Map<String, List<PresensiLog>> grouped, Color textColor, Color cardBg) {
+    if (_selectedDate == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Text('Pilih tanggal pada kalender',
+              style: TextStyle(color: textColor.withValues(alpha: 0.5))),
+        ),
+      );
+    }
+
+    final logs = grouped[_selectedDate] ?? [];
+    
+    // Sort logs by waktu for chronological order
+    logs.sort((a, b) => a.waktu.compareTo(b.waktu));
+
+    if (logs.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Text('Tidak ada riwayat presensi',
+              style: TextStyle(color: textColor.withValues(alpha: 0.5))),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Text(
+            'Detail Presensi: $_selectedDate',
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w600, color: textColor),
+          ),
+        ),
+        ...logs.map((log) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _getTypeColor(log.tipe),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(log.tipe.displayLabel,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, color: textColor)),
+                      const SizedBox(height: 2),
+                      Text(
+                        date_utils.formatTime(DateTime.parse(log.waktu)),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: textColor.withValues(alpha: 0.7)),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: log.status == Status.approved
+                              ? AppColors.success.withValues(alpha: 0.15)
+                              : (log.status == Status.rejected ? AppColors.error.withValues(alpha: 0.15) : AppColors.warning.withValues(alpha: 0.15)),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          getStatusLabel(log.status),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: log.status == Status.approved
+                                ? AppColors.success
+                                : (log.status == Status.rejected ? AppColors.error : AppColors.warning),
+                          ),
+                        ),
+                      ),
+                      if (log.namaVerifikator != null && log.namaVerifikator!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.verified_user_rounded, size: 12, color: textColor.withValues(alpha: 0.5)),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'Diverifikasi oleh: ${log.namaVerifikator}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: textColor.withValues(alpha: 0.6),
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (log.isLuarRadius > 0)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('WFA',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.bold)),
+                  )
+              ],
+            ),
+          );
+        })
+      ],
     );
   }
 

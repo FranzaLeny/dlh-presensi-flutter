@@ -6,7 +6,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 const String _dbName = 'presensi.db';
-const int _dbVersion = 1;
+const int _dbVersion = 2;
 
 Database? _db;
 
@@ -25,8 +25,14 @@ Future<Database> _initDatabase() async {
     path,
     version: _dbVersion,
     onCreate: _onCreate,
+    onUpgrade: (db, oldVersion, newVersion) async {
+      if (oldVersion < 2) {
+        await db.execute('DROP TABLE IF EXISTS presensi_log_pending');
+      }
+    },
     onConfigure: (db) async {
-      await db.execute('PRAGMA journal_mode = WAL');
+      // PRAGMA journal_mode mengembalikan baris hasil sehingga harus memakai rawQuery
+      await db.rawQuery('PRAGMA journal_mode = WAL');
       await db.execute('PRAGMA foreign_keys = ON');
     },
   );
@@ -78,31 +84,6 @@ Future<void> _onCreate(Database db, int version) async {
       ON presensi_log (pegawai_id, tanggal, tipe)
   ''');
 
-  await db.execute('''
-    CREATE TABLE IF NOT EXISTS presensi_log_pending (
-      id TEXT PRIMARY KEY,
-      pegawai_id TEXT NOT NULL,
-      pengaturan_id TEXT NOT NULL,
-      tanggal TEXT NOT NULL,
-      tipe TEXT NOT NULL,
-      waktu TEXT NOT NULL,
-      latitude REAL,
-      longitude REAL,
-      foto_path TEXT,
-      foto_url TEXT,
-      is_luar_radius INTEGER NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'HADIR',
-      keterangan TEXT,
-      device_id TEXT,
-      is_synced INTEGER NOT NULL DEFAULT 0,
-      nama_verifikator TEXT
-    )
-  ''');
-
-  await db.execute('''
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_presensi_log_pending_tgl_tipe
-      ON presensi_log_pending (pegawai_id, tanggal, tipe)
-  ''');
 }
 
 /// Inisialisasi database — dipanggil sekali saat app mount
