@@ -244,7 +244,7 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
                         child: Text(
                           'Pengaturan lokal belum disinkronkan. Hubungkan ke internet untuk memperbarui.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: subtextColor),
+                          style: TextStyle(fontSize: 15, color: subtextColor),
                         ),
                       ),
                     ),
@@ -323,8 +323,8 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
                 label: Text(
                   _isSyncing ? 'Memperbarui...' : 'Sinkronkan Pengaturan',
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(

@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/config/env.dart';
@@ -83,7 +84,7 @@ class AuthService {
         await _storage.write(key: 'device_private_key', value: privateKey);
         await _storage.write(key: 'device_public_key', value: publicKey);
       } catch (err) {
-        print('Error generating RSA keypair: $err');
+        debugPrint('Error generating RSA keypair: $err');
         throw Exception('Gagal membuat kunci keamanan perangkat.');
       }
     }
@@ -103,7 +104,7 @@ class AuthService {
             'appVersion': appVersion,
             'platform': platform,
             'registeredAt': DateTime.now().toIso8601String(),
-            'publicKey': publicKey ?? '',
+            'publicKey': publicKey,
           },
         },
       );

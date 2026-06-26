@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/utils/crypto_utils.dart';
@@ -89,8 +90,8 @@ Future<void> syncSettings({String? skpdId}) async {
       await TimeService.syncTime();
     }
   } catch (err, stack) {
-    print('Error in syncSettings: $err');
-    print(stack);
+    debugPrint('Error in syncSettings: $err');
+    debugPrint(stack.toString());
     // Log warning only
   }
 }
@@ -154,7 +155,7 @@ Future<({int synced, int errors})> syncLogsBulanan(int year, int month) async {
       }
     }
   } catch (err) {
-    print('Gagal pull sync: $err');
+    debugPrint('Gagal pull sync: $err');
     // Jika gagal pull, kita tetap mengembalikan hasil push
   }
 

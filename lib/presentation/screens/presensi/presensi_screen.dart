@@ -82,10 +82,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
   }
 
   Future<void> _requestPermissions() async {
-    await [
-      Permission.camera,
-      Permission.locationWhenInUse,
-    ].request();
+    await [Permission.camera, Permission.locationWhenInUse].request();
   }
 
   void _startTimer() {
@@ -134,20 +131,30 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
 
       final pegawai = await AuthService.getPegawai();
       final pegawaiId = pegawai?.id ?? 'unknown';
-      final logs = await PresensiDao.getByDate(pegawaiId, today);
+      var logs = await PresensiDao.getByDate(pegawaiId, today);
 
       if (mounted) {
         setState(() {
           _todayLogs = logs;
-          _loading = false;
+          _loading = false; // We can show the old data while syncing
         });
       }
 
+      // Sync dengan server untuk hari ini (dan seluruh bulan) secara background
+      final now = DateTime.now();
+      try {
+        await syncLogsBulanan(now.year, now.month);
+        logs = await PresensiDao.getByDate(pegawaiId, today);
+        if (mounted) {
+          setState(() {
+            _todayLogs = logs;
+          });
+        }
+      } catch (_) {}
+
       // Auto-check geofence
       if (_pengaturan != null) {
-        ref
-            .read(geofenceProvider.notifier)
-            .checkGeofence(_pengaturan!);
+        ref.read(geofenceProvider.notifier).checkGeofence(_pengaturan!);
       }
     } catch (err) {
       if (mounted) {
@@ -159,8 +166,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
 
   Future<void> _handleAbsen(TipePresensi jenis) async {
     if (_pengaturan == null) {
-      _showAlert('Error',
-          'Pengaturan presensi belum dimuat. Pastikan data telah disinkronisasi.');
+      _showAlert(
+        'Error',
+        'Pengaturan presensi belum dimuat. Pastikan data telah disinkronisasi.',
+      );
       return;
     }
 
@@ -203,7 +212,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
   Future<void> _initCamera() async {
     final status = await Permission.camera.request();
     if (status.isDenied || status.isPermanentlyDenied) {
-      _showAlert('Error', 'Izin kamera ditolak. Aktifkan izin kamera untuk presensi luar radius.');
+      _showAlert(
+        'Error',
+        'Izin kamera ditolak. Aktifkan izin kamera untuk presensi luar radius.',
+      );
       if (mounted) setState(() => _showCamera = false);
       return;
     }
@@ -217,8 +229,8 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
       frontCamera,
       ResolutionPreset.medium,
       enableAudio: false,
-      imageFormatGroup: Platform.isAndroid 
-          ? ImageFormatGroup.nv21 
+      imageFormatGroup: Platform.isAndroid
+          ? ImageFormatGroup.nv21
           : ImageFormatGroup.bgra8888,
     );
     await _cameraController!.initialize();
@@ -255,14 +267,21 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
       }
       final bytes = allBytes.done().buffer.asUint8List();
 
-      final Size imageSize = Size(image.width.toDouble(), image.height.toDouble());
-      final InputImageRotation imageRotation = InputImageRotationValue.fromRawValue(
-              _cameraController!.description.sensorOrientation) ??
+      final Size imageSize = Size(
+        image.width.toDouble(),
+        image.height.toDouble(),
+      );
+      final InputImageRotation imageRotation =
+          InputImageRotationValue.fromRawValue(
+            _cameraController!.description.sensorOrientation,
+          ) ??
           InputImageRotation.rotation0deg;
 
       final InputImageFormat inputImageFormat =
           InputImageFormatValue.fromRawValue(image.format.raw) ??
-              (Platform.isAndroid ? InputImageFormat.nv21 : InputImageFormat.bgra8888);
+          (Platform.isAndroid
+              ? InputImageFormat.nv21
+              : InputImageFormat.bgra8888);
 
       final inputImage = InputImage.fromBytes(
         bytes: bytes,
@@ -275,9 +294,9 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
       );
 
       final faces = await _faceDetector!.processImage(inputImage);
-      
+
       final hasFace = faces.length == 1;
-      
+
       if (mounted && _isFaceDetected != hasFace) {
         setState(() {
           _isFaceDetected = hasFace;
@@ -297,7 +316,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     }
 
     if (!_isFaceDetected) {
-      _showAlert('Perhatian', 'Wajah tidak terdeteksi atau terdapat lebih dari satu wajah. Pastikan wajah Anda terlihat jelas dalam bingkai kamera.');
+      _showAlert(
+        'Perhatian',
+        'Wajah tidak terdeteksi atau terdapat lebih dari satu wajah. Pastikan wajah Anda terlihat jelas dalam bingkai kamera.',
+      );
       return;
     }
 
@@ -313,8 +335,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
         await Future.delayed(const Duration(milliseconds: 500));
       }
       final photo = await _cameraController!.takePicture();
-      final savedPath =
-          await CameraService.saveSelfie(photo.path, _cameraJenis.toDbString());
+      final savedPath = await CameraService.saveSelfie(
+        photo.path,
+        _cameraJenis.toDbString(),
+      );
 
       setState(() => _showCamera = false);
       if (_cameraController?.value.isStreamingImages == true) {
@@ -364,16 +388,22 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     try {
       nowDb = await TimeService.getEstimatedServerTime();
     } catch (err) {
-      _showAlert('Presensi Ditolak',
-          getErrorMessage(err).isNotEmpty ? getErrorMessage(err) : 'Terjadi manipulasi waktu perangkat.');
+      _showAlert(
+        'Presensi Ditolak',
+        getErrorMessage(err).isNotEmpty
+            ? getErrorMessage(err)
+            : 'Terjadi manipulasi waktu perangkat.',
+      );
       return;
     }
 
     final deviceTime = DateTime.now().millisecondsSinceEpoch;
     final diff = (deviceTime - nowDb.millisecondsSinceEpoch).abs();
     if (diff > 60000) {
-      _showAlert('Perbedaan Waktu Terdeteksi',
-          'Waktu HP Anda tidak sesuai dengan server. Silakan atur waktu HP Anda ke otomatis.');
+      _showAlert(
+        'Perbedaan Waktu Terdeteksi',
+        'Waktu HP Anda tidak sesuai dengan server. Silakan atur waktu HP Anda ke otomatis.',
+      );
       return;
     }
 
@@ -396,16 +426,23 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     );
 
     await PresensiDao.create(newLog);
-    setState(() => _todayLogs = [..._todayLogs, newLog]);
+    _todayLogs = await PresensiDao.getByDate(pegawai.id, today);
 
-    // Trigger sync
-    syncUnsyncedLogs().catchError((_) => (synced: 0, errors: 0));
+    // Trigger sync push & pull untuk bulan ini (agar sinkron dengan server jika dihapus di server)
+    final nowDateTime = DateTime.now();
+    await syncLogsBulanan(
+      nowDateTime.year,
+      nowDateTime.month,
+    ).catchError((_) => (synced: 0, errors: 0));
+
+    _todayLogs = await PresensiDao.getByDate(pegawai.id, today);
+    setState(() {});
 
     final timeFormatted = date_utils.formatTimeWithSeconds(nowDb);
     _showAlert(
       '✅ Berhasil',
       'Absen ${jenis.displayLabel} berhasil dicatat pada pukul $timeFormatted'
-      '${isLuarRadius ? '\n\n⚠️ Lokasi terdeteksi diluar area kantor' : ''}',
+          '${isLuarRadius ? '\n\n⚠️ Lokasi terdeteksi diluar area kantor' : ''}',
     );
   }
 
@@ -420,12 +457,16 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
       if (drift <= 60000) {
         setState(() => _timeMismatch = false);
       } else {
-        _showAlert('Waktu Masih Tidak Sesuai',
-            'Silakan buka Pengaturan → Tanggal & Waktu → aktifkan "Atur waktu otomatis".');
+        _showAlert(
+          'Waktu Masih Tidak Sesuai',
+          'Silakan buka Pengaturan → Tanggal & Waktu → aktifkan "Atur waktu otomatis".',
+        );
       }
     } catch (_) {
-      _showAlert('Gagal Sinkronisasi',
-          'Pastikan Anda terhubung ke internet dan waktu perangkat sudah diatur otomatis.');
+      _showAlert(
+        'Gagal Sinkronisasi',
+        'Pastikan Anda terhubung ke internet dan waktu perangkat sudah diatur otomatis.',
+      );
     } finally {
       if (mounted) setState(() => _retryingTime = false);
     }
@@ -437,9 +478,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Konfirmasi Absen Ulang'),
+        title: const Text('Konfirmasi Hapus Absen'),
         content: const Text(
-            'Apakah Anda yakin ingin menghapus data presensi hari ini dan melakukan absen ulang?'),
+          'Apakah Anda yakin ingin menghapus data presensi hari ini yang belum disingkron?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -448,7 +490,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Ya, Absen Ulang'),
+            child: const Text('Ya, Hapus'),
           ),
         ],
       ),
@@ -459,11 +501,15 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     setState(() => _loading = true);
     try {
       for (final log in _todayLogs) {
-        await PresensiDao.delete(log.id);
+        if (!log.isSynced || log.status == Status.rejected) {
+          await PresensiDao.delete(log.id);
+        }
       }
-      setState(() => _todayLogs = []);
-      _showAlert('Berhasil',
-          'Data presensi hari ini telah direset. Silakan lakukan absen masuk kembali.');
+      await _loadData();
+      _showAlert(
+        'Berhasil',
+        'Data presensi hari ini yang belum disingkron berhasil dihapus.',
+      );
     } catch (_) {
       _showAlert('Error', 'Gagal mereset data presensi.');
     } finally {
@@ -499,8 +545,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     }
 
     final bgColor = isDark ? const Color(0xFF1A1B2E) : const Color(0xFFF5F5FA);
-    final cardBg =
-        isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
+    final cardBg = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF1A1B2E);
     final subtextColor = isDark
         ? Colors.white.withValues(alpha: 0.5)
@@ -518,38 +563,141 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
-                    // ── Time Card ──────────────────────────────────
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
+                    // ── Time & Date Cards ──────────────────────────
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            date_utils.formatTime(_currentTime),
-                            style: const TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              fontFeatures: [FontFeature.tabularFigures()],
+                          // Left Side Card: Time (Jam, Menit)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 16,
+                              horizontal: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: isDark ? 0.2 : 0.05,
+                                  ),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  date_utils
+                                      .formatTime(_currentTime)
+                                      .split(':')[0],
+                                  style: TextStyle(
+                                    fontFamily: 'Digital7',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 72,
+                                    color: isDark ? const Color(0xFF00E676) : const Color(0xFF1B5E20),
+                                    height: 0.9,
+                                  ),
+                                ),
+                                Text(
+                                  date_utils
+                                      .formatTime(_currentTime)
+                                      .split(':')[1],
+                                  style: TextStyle(
+                                    fontFamily: 'Digital7',
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 72,
+                                    color: isDark ? const Color(0xFF00E676) : const Color(0xFF1B5E20),
+                                    height: 0.9,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            date_utils.formatDate(_currentTime),
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.8),
+
+                          const SizedBox(width: 16),
+
+                          // Right Side Card: Date
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16,
+                                horizontal: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cardBg,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(
+                                      alpha: isDark ? 0.2 : 0.05,
+                                    ),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'Waktu Indonesia Tengah',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: subtextColor,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      date_utils
+                                                  .formatDate(_currentTime)
+                                                  .split(',')
+                                                  .length >
+                                              1
+                                          ? date_utils
+                                                .formatDate(_currentTime)
+                                                .split(',')[1]
+                                                .trim()
+                                          : '',
+                                      style: TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      date_utils
+                                          .formatDate(_currentTime)
+                                          .split(',')[0],
+                                      style: TextStyle(
+                                        fontSize: 56,
+                                        fontWeight: FontWeight.w800,
+                                        color: textColor,
+                                        height: 1.0,
+                                        letterSpacing: 2.0,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -564,7 +712,11 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                     // ── Geofence Info ──────────────────────────────
                     if (_pengaturan != null)
                       _buildGeofenceCard(
-                          geoState, cardBg, textColor, subtextColor),
+                        geoState,
+                        cardBg,
+                        textColor,
+                        subtextColor,
+                      ),
                     const SizedBox(height: 12),
 
                     // ── Timeline ───────────────────────────────────
@@ -619,7 +771,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
   }
 
   Widget _buildActionButtons(
-      Color cardBg, Color textColor, Color subtextColor) {
+    Color cardBg,
+    Color textColor,
+    Color subtextColor,
+  ) {
     if (_masukLog != null &&
         _mulaiIstirahatLog != null &&
         _selesaiIstirahatLog != null &&
@@ -637,11 +792,14 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
               children: [
                 const Text('✅', style: TextStyle(fontSize: 40)),
                 const SizedBox(height: 8),
-                Text('Presensi Lengkap',
-                    style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: textColor)),
+                Text(
+                  'Presensi Lengkap',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   'Anda sudah absen masuk, istirahat, dan pulang hari ini',
@@ -651,8 +809,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
               ],
             ),
           ),
-          if (_todayLogs
-              .any((l) => !l.isSynced || l.status == Status.rejected))
+          if (_todayLogs.any((l) => !l.isSynced || l.status == Status.rejected))
             _buildRedoButton(),
         ],
       );
@@ -696,8 +853,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     return Column(
       children: [
         ?actionButton,
-        if (_todayLogs
-            .any((l) => !l.isSynced || l.status == Status.rejected))
+        if (_todayLogs.any((l) => !l.isSynced || l.status == Status.rejected))
           _buildRedoButton(),
       ],
     );
@@ -710,42 +866,57 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     required String label,
     required String sublabel,
   }) {
-    return GestureDetector(
-      onTap: _loading ? null : () => _handleAbsen(jenis),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1B2E);
+    final subtextColor = isDark
+        ? Colors.white.withValues(alpha: 0.6)
+        : Colors.black.withValues(alpha: 0.5);
+
+    final bgColor = isDark ? const Color(0xFF1A1B2E) : const Color(0xFFF5F5FA);
+
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-        child: _loading
-            ? const Center(
-                child: CircularProgressIndicator(color: Colors.white))
-            : Column(
-                children: [
-                  Text(emoji, style: const TextStyle(fontSize: 32)),
-                  const SizedBox(height: 8),
-                  Text(label,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(sublabel,
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 13)),
-                ],
-              ),
-      ),
+        const SizedBox(height: 4),
+        Text(sublabel, style: TextStyle(color: subtextColor, fontSize: 14)),
+        const SizedBox(height: 32),
+        GestureDetector(
+          onTap: _loading ? null : () => _handleAbsen(jenis),
+          child: Container(
+            width: 130,
+            height: 130,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: color, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.6),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: color.withValues(alpha: 0.3),
+                  blurRadius: 40,
+                  spreadRadius: 8,
+                ),
+              ],
+            ),
+            child: _loading
+                ? Center(child: CircularProgressIndicator(color: color))
+                : Center(
+                    child: Icon(Icons.fingerprint, size: 80, color: color),
+                  ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -754,8 +925,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
       padding: const EdgeInsets.only(top: 12),
       child: TextButton(
         onPressed: _loading ? null : _handleRedoPresensi,
-        child: const Text('🔄 Absen Ulang Hari Ini',
-            style: TextStyle(color: AppColors.error)),
+        child: const Text(
+          '🗑️ Hapus Absen Hari Ini',
+          style: TextStyle(color: AppColors.error),
+        ),
       ),
     );
   }
@@ -786,9 +959,14 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Info Lokasi',
-                  style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
+              Text(
+                'Info Lokasi',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 20),
                 padding: EdgeInsets.zero,
@@ -797,8 +975,8 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                 onPressed: _loading
                     ? null
                     : () => ref
-                        .read(geofenceProvider.notifier)
-                        .checkGeofence(_pengaturan!, force: true),
+                          .read(geofenceProvider.notifier)
+                          .checkGeofence(_pengaturan!, force: true),
               ),
             ],
           ),
@@ -840,8 +1018,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
               ),
             ),
           ] else
-            Text('Lokasi belum diperiksa.',
-                style: TextStyle(fontSize: 14, color: subtextColor)),
+            Text(
+              'Lokasi belum diperiksa.',
+              style: TextStyle(fontSize: 14, color: subtextColor),
+            ),
         ],
       ),
     );
@@ -861,7 +1041,11 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.warning_amber_rounded, size: 48, color: Colors.orange),
+              const Icon(
+                Icons.warning_amber_rounded,
+                size: 48,
+                color: Colors.orange,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Perbedaan Waktu Terdeteksi',
@@ -947,23 +1131,35 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: _isFaceDetected ? AppColors.success.withValues(alpha: 0.8) : Colors.black54,
+                      color: _isFaceDetected
+                          ? AppColors.success.withValues(alpha: 0.8)
+                          : Colors.black54,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _isFaceDetected ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                          _isFaceDetected
+                              ? Icons.check_circle_rounded
+                              : Icons.warning_amber_rounded,
                           color: Colors.white,
                           size: 16,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          _isFaceDetected ? 'Wajah Terdeteksi' : 'Wajah tidak terdeteksi',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          _isFaceDetected
+                              ? 'Wajah Terdeteksi'
+                              : 'Wajah tidak terdeteksi',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -975,7 +1171,8 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                       TextButton(
                         onPressed: () async {
                           setState(() => _showCamera = false);
-                          if (_cameraController?.value.isStreamingImages == true) {
+                          if (_cameraController?.value.isStreamingImages ==
+                              true) {
                             await _cameraController?.stopImageStream();
                           }
                           _cameraController?.dispose();
@@ -983,9 +1180,10 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                           _faceDetector?.close();
                           _faceDetector = null;
                         },
-                        child: const Text('Batal',
-                            style:
-                                TextStyle(color: Colors.white, fontSize: 16)),
+                        child: const Text(
+                          'Batal',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
                       ),
                       GestureDetector(
                         onTap: _loading ? null : _handleTakeSelfie,
@@ -998,12 +1196,15 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
                           ),
                           child: _loading
                               ? const CircularProgressIndicator(
-                                  color: Colors.white)
+                                  color: Colors.white,
+                                )
                               : Container(
                                   margin: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: _isFaceDetected ? Colors.white : Colors.white.withValues(alpha: 0.3),
+                                    color: _isFaceDetected
+                                        ? Colors.white
+                                        : Colors.white.withValues(alpha: 0.3),
                                   ),
                                 ),
                         ),

@@ -57,3 +57,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  fonts:
+    - family: Digital7
+      fonts:
+        - asset: assets/fonts/Digital7Mono.ttf

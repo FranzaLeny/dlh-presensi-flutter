@@ -81,14 +81,16 @@ class _RekapScreenState extends State<RekapScreen> {
     final cardBg =
         isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF1A1B2E);
-    final subtextColor = isDark
-        ? Colors.white.withValues(alpha: 0.5)
-        : Colors.black.withValues(alpha: 0.5);
 
-    // Group logs by tanggal
+    // Group logs by tanggal (pastikan hanya untuk bulan & tahun terpilih)
+    final selectedMonthStr = _selectedMonth.toString().padLeft(2, '0');
+    final selectedYearMonth = '$_selectedYear-$selectedMonthStr';
+
     final grouped = <String, List<PresensiLog>>{};
     for (final log in _logs) {
-      grouped.putIfAbsent(log.tanggal, () => []).add(log);
+      if (log.tanggal.startsWith(selectedYearMonth)) {
+        grouped.putIfAbsent(log.tanggal, () => []).add(log);
+      }
     }
 
     final months = [
@@ -97,11 +99,18 @@ class _RekapScreenState extends State<RekapScreen> {
     ];
 
     // Count stats
-    final masukCount =
-        _logs.where((l) => l.tipe == TipePresensi.masuk).length;
-    final pulangCount =
-        _logs.where((l) => l.tipe == TipePresensi.pulang).length;
-    final wfaCount = _logs.where((l) => l.isLuarRadius > 0).length;
+    var lengkapCount = 0;
+    var tidakLengkapCount = 0;
+    final totalHariAbsen = grouped.keys.length;
+
+    for (final dayLogs in grouped.values) {
+      final uniqueTypes = dayLogs.map((l) => l.tipe).toSet();
+      if (uniqueTypes.length == 4) {
+        lengkapCount++;
+      } else {
+        tidakLengkapCount++;
+      }
+    }
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -146,25 +155,25 @@ class _RekapScreenState extends State<RekapScreen> {
             child: Row(
               children: [
                 _StatCard(
-                  label: 'Hari Masuk',
-                  value: masukCount.toString(),
-                  color: AppColors.absenMasuk,
+                  label: 'Absen Lengkap',
+                  value: lengkapCount.toString(),
+                  color: AppColors.success,
                   bgColor: cardBg,
                   textColor: textColor,
                 ),
                 const SizedBox(width: 8),
                 _StatCard(
-                  label: 'Hari Pulang',
-                  value: pulangCount.toString(),
-                  color: AppColors.absenPulang,
-                  bgColor: cardBg,
-                  textColor: textColor,
-                ),
-                const SizedBox(width: 8),
-                _StatCard(
-                  label: 'WFA',
-                  value: wfaCount.toString(),
+                  label: 'Tidak Lengkap',
+                  value: tidakLengkapCount.toString(),
                   color: AppColors.warning,
+                  bgColor: cardBg,
+                  textColor: textColor,
+                ),
+                const SizedBox(width: 8),
+                _StatCard(
+                  label: 'Total Hari',
+                  value: totalHariAbsen.toString(),
+                  color: AppColors.primary,
                   bgColor: cardBg,
                   textColor: textColor,
                 ),

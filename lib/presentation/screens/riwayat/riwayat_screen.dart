@@ -21,6 +21,7 @@ class RiwayatScreen extends StatefulWidget {
 class _RiwayatScreenState extends State<RiwayatScreen> {
   List<PresensiLog> _logs = [];
   bool _loading = true;
+  final Set<String> _syncingLogIds = {};
 
   @override
   void initState() {
@@ -28,8 +29,10 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _loading = true);
+  Future<void> _loadData({bool showLocalLoading = true}) async {
+    if (showLocalLoading) {
+      setState(() => _loading = true);
+    }
     try {
       final pegawai = await AuthService.getPegawai();
       final now = DateTime.now();
@@ -40,7 +43,9 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
       );
       if (mounted) setState(() => _logs = logs);
     } catch (_) {}
-    if (mounted) setState(() => _loading = false);
+    if (showLocalLoading && mounted) {
+      setState(() => _loading = false);
+    }
   }
 
   Future<void> _handleRefresh() async {
@@ -50,6 +55,53 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
       await syncLogsBulanan(now.year, now.month);
     } catch (_) {}
     await _loadData();
+  }
+
+  Future<void> _handleSingleSync(String logId) async {
+    if (_syncingLogIds.contains(logId)) return;
+
+    setState(() {
+      _syncingLogIds.add(logId);
+    });
+
+    try {
+      final success = await syncSingleLog(logId);
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Presensi berhasil disinkronkan.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gagal mensinkronkan presensi.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e is Exception ? e.toString().replaceAll('Exception: ', '') : 'Terjadi kesalahan saat sinkronisasi.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _syncingLogIds.remove(logId);
+        });
+      }
+      await _loadData(showLocalLoading: false);
+    }
   }
 
   @override
@@ -72,10 +124,22 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
         centerTitle: true,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.sync),
-            tooltip: 'Tarik Data Server',
-            onPressed: _loading ? null : _handleRefresh,
+          Padding(
+            padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: isDark ? Colors.white24 : Colors.black12,
+                  width: 1.5,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.sync, color: textColor),
+                tooltip: 'Tarik Data Server',
+                onPressed: _loading ? null : _handleRefresh,
+              ),
+            ),
           ),
         ],
       ),
@@ -152,19 +216,36 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      if (!log.isSynced)
-                                        GestureDetector(
-                                          onTap: _handleRefresh,
-                                          child: Container(
-                                            margin: const EdgeInsets.only(right: 6),
-                                            padding: const EdgeInsets.all(2),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.warning.withValues(alpha: 0.2),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.sync_rounded, size: 14, color: AppColors.warning),
-                                          ),
-                                        ),
+                                       if (!log.isSynced)
+                                         GestureDetector(
+                                           onTap: _syncingLogIds.contains(log.id)
+                                               ? null
+                                               : () => _handleSingleSync(log.id),
+                                           child: Container(
+                                             margin: const EdgeInsets.only(right: 6),
+                                             padding: const EdgeInsets.all(2),
+                                             decoration: BoxDecoration(
+                                               color: AppColors.warning.withValues(alpha: 0.15),
+                                               shape: BoxShape.circle,
+                                               border: Border.all(
+                                                 color: AppColors.warning,
+                                                 width: 1,
+                                               ),
+                                             ),
+                                             child: _syncingLogIds.contains(log.id)
+                                                 ? const SizedBox(
+                                                     width: 12,
+                                                     height: 12,
+                                                     child: CircularProgressIndicator(
+                                                       strokeWidth: 1.5,
+                                                       valueColor: AlwaysStoppedAnimation<Color>(
+                                                         AppColors.warning,
+                                                       ),
+                                                     ),
+                                                   )
+                                                 : const Icon(Icons.sync_rounded, size: 12, color: AppColors.warning),
+                                           ),
+                                         ),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 6, vertical: 2),
