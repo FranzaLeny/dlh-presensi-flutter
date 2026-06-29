@@ -63,7 +63,7 @@ class TimeService {
     // 1. Deteksi manipulasi waktu dalam sesi
     final elapsedDevice = nowDevice - _sessionStartDeviceTime;
     final elapsedPerf = nowPerf.toInt() - _sessionStartPerfTime;
-    if ((elapsedDevice - elapsedPerf).abs() > 15000) {
+    if ((elapsedDevice - elapsedPerf).abs() > 15 * 60 * 1000) { // 15 menit
       throw Exception(
           'Manipulasi waktu terdeteksi! Waktu perangkat Anda diubah.');
     }

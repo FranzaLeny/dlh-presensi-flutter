@@ -114,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Presensi DLH',
+                    'DigiLH',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
@@ -318,7 +318,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // ── Footer ──────────────────────────────────────
                   Text(
-                    'Presensi DLH v1.0 • Offline-First',
+                    'DigiLH v1.0 • Offline-First',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.white.withValues(alpha: 0.3),

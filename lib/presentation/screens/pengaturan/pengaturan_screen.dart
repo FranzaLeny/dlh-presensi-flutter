@@ -375,7 +375,7 @@ class _PengaturanScreenState extends State<PengaturanScreen> {
             // ── Footer ────────────────────────────────────────
             Center(
               child: Text(
-                'Presensi DLH v1.0 • Offline-First',
+                'DigiLH v1.0 • Offline-First',
                 style: TextStyle(fontSize: 12, color: subtextColor),
               ),
             ),
