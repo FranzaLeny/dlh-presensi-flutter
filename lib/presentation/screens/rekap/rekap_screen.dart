@@ -394,26 +394,6 @@ class _RekapScreenState extends State<RekapScreen> {
                             fontSize: 12,
                             color: textColor.withValues(alpha: 0.7)),
                       ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: log.status == Status.approved
-                              ? AppColors.success.withValues(alpha: 0.15)
-                              : (log.status == Status.rejected ? AppColors.error.withValues(alpha: 0.15) : AppColors.warning.withValues(alpha: 0.15)),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          getStatusLabel(log.status),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: log.status == Status.approved
-                                ? AppColors.success
-                                : (log.status == Status.rejected ? AppColors.error : AppColors.warning),
-                          ),
-                        ),
-                      ),
                       if (log.namaVerifikator != null && log.namaVerifikator!.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Row(
@@ -438,20 +418,46 @@ class _RekapScreenState extends State<RekapScreen> {
                     ],
                   ),
                 ),
-                if (log.isLuarRadius > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('WFA',
+                const SizedBox(width: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: log.status == Status.approved
+                            ? AppColors.success.withValues(alpha: 0.15)
+                            : (log.status == Status.rejected ? AppColors.error.withValues(alpha: 0.15) : AppColors.warning.withValues(alpha: 0.15)),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        getStatusLabel(log.status),
                         style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.warning,
-                            fontWeight: FontWeight.bold)),
-                  )
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: log.status == Status.approved
+                              ? AppColors.success
+                              : (log.status == Status.rejected ? AppColors.error : AppColors.warning),
+                        ),
+                      ),
+                    ),
+                    if (log.isLuarRadius > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('WFA',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.warning,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ],
+                )
               ],
             ),
           );

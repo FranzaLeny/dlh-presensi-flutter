@@ -33,10 +33,7 @@ class AuthService {
         : {'username': identifier, 'password': password};
 
     // POST ke Better Auth sign-in endpoint
-    final response = await apiClient.post(
-      endpoint,
-      data: payload,
-    );
+    final response = await apiClient.post(endpoint, data: payload);
 
     final data = response.data;
     final token = data['token'] ?? data['session']?['token'];
@@ -115,7 +112,7 @@ class AuthService {
       } else {
         throw Exception('Gagal mendapatkan API Key dari server.');
       }
-      
+
       if (data['id'] != null) {
         await _storage.write(key: _apiKeyIdKey, value: data['id'] as String);
       }
@@ -151,8 +148,11 @@ class AuthService {
     final apiKey = await _storage.read(key: _apiKeyKey);
     final apiKeyId = await _storage.read(key: _apiKeyIdKey);
     final privateKey = await _storage.read(key: 'device_private_key');
-    
-    return pegawai != null && apiKey != null && apiKeyId != null && privateKey != null;
+
+    return pegawai != null &&
+        apiKey != null &&
+        apiKeyId != null &&
+        privateKey != null;
   }
 
   // ── Logout ─────────────────────────────────────────────────────────────

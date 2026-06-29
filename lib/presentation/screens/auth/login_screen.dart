@@ -3,6 +3,7 @@
 // ====================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -47,9 +48,11 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (err) {
       final msg = getErrorMessage(err);
       if (mounted) {
-        _showError(msg.isNotEmpty
-            ? msg
-            : 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.');
+        _showError(
+          msg.isNotEmpty
+              ? msg
+              : 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.',
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -101,8 +104,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         color: AppColors.primary.withValues(alpha: 0.3),
                       ),
                     ),
-                    child: const Center(
-                      child: Text('📋', style: TextStyle(fontSize: 36)),
+                    child: Center(
+                      child: SvgPicture.asset(
+                        'assets/icon.svg',
+                        width: 44,
+                        height: 44,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -171,7 +178,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           decoration: InputDecoration(
                             hintText: 'Masukkan email atau username',
-                            hintStyle: const TextStyle(color: Color(0xFF666666)),
+                            hintStyle: const TextStyle(
+                              color: Color(0xFF666666),
+                            ),
                             filled: true,
                             fillColor: Colors.white.withValues(alpha: 0.06),
                             border: OutlineInputBorder(
@@ -222,7 +231,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           decoration: InputDecoration(
                             hintText: 'Masukkan password',
-                            hintStyle: const TextStyle(color: Color(0xFF666666)),
+                            hintStyle: const TextStyle(
+                              color: Color(0xFF666666),
+                            ),
                             filled: true,
                             fillColor: Colors.white.withValues(alpha: 0.06),
                             suffixIcon: IconButton(
@@ -278,8 +289,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               elevation: 6,
                               shadowColor: AppColors.primary,
-                              disabledBackgroundColor:
-                                  AppColors.primary.withValues(alpha: 0.6),
+                              disabledBackgroundColor: AppColors.primary
+                                  .withValues(alpha: 0.6),
                             ),
                             child: _loading
                                 ? const SizedBox(
