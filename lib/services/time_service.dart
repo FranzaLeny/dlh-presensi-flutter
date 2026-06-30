@@ -11,14 +11,20 @@ const _storage = FlutterSecureStorage();
 
 // Monotonic clock — menggunakan Stopwatch (tidak bisa dimanipulasi user)
 final _appStopwatch = Stopwatch()..start();
-final _sessionStartDeviceTime = DateTime.now().millisecondsSinceEpoch;
-final _sessionStartPerfTime = _appStopwatch.elapsedMilliseconds;
+int _sessionStartDeviceTime = DateTime.now().millisecondsSinceEpoch;
+int _sessionStartPerfTime = _appStopwatch.elapsedMilliseconds;
 
 int? _lastSyncServerTime;
 int? _lastSyncPerfTime;
 
 class TimeService {
   TimeService._();
+
+  /// Reset referensi sesi untuk menghindari sleep drift saat layar mati
+  static void resetSessionReference() {
+    _sessionStartDeviceTime = DateTime.now().millisecondsSinceEpoch;
+    _sessionStartPerfTime = _appStopwatch.elapsedMilliseconds;
+  }
 
   /// Mendapatkan waktu monotonic (ms) — equivalent ke performance.now() di JS
   static double _perfNow() => _appStopwatch.elapsedMilliseconds.toDouble();
@@ -37,6 +43,9 @@ class TimeService {
         // Simpan ke in-memory untuk session ini
         _lastSyncServerTime = serverTimeMs;
         _lastSyncPerfTime = perfTime.toInt();
+
+        // Reset referensi sesi untuk mencegah sleep drift
+        resetSessionReference();
 
         // Simpan ke SecureStore secara persistent
         await _storage.write(

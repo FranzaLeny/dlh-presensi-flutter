@@ -35,7 +35,7 @@ class PresensiScreen extends ConsumerStatefulWidget {
   ConsumerState<PresensiScreen> createState() => _PresensiScreenState();
 }
 
-class _PresensiScreenState extends ConsumerState<PresensiScreen> {
+class _PresensiScreenState extends ConsumerState<PresensiScreen> with WidgetsBindingObserver {
   DateTime _currentTime = DateTime.now();
   PengaturanPresensi? _pengaturan;
   List<PresensiLog> _todayLogs = [];
@@ -65,6 +65,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _requestPermissions();
     _startTimer();
     _loadData();
@@ -72,6 +73,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     if (_cameraController?.value.isStreamingImages == true) {
       _cameraController?.stopImageStream();
@@ -79,6 +81,14 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> {
     _cameraController?.dispose();
     _faceDetector?.close();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      TimeService.resetSessionReference();
+      _loadData();
+    }
   }
 
   Future<void> _requestPermissions() async {
