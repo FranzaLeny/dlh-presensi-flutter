@@ -169,7 +169,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> with WidgetsBin
     } catch (err) {
       if (mounted) {
         setState(() => _loading = false);
-        _showAlert('Error Memuat Data', 'Gagal memuat data: ${err.toString()}');
+        _showAlert('Error Memuat Data', 'Gagal memuat data: ${getErrorMessage(err)}');
       }
     }
   }
@@ -370,7 +370,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen> with WidgetsBin
         );
       }
     } catch (e) {
-      _showAlert('Error', 'Gagal mengambil foto selfie: $e');
+      _showAlert('Error', 'Gagal mengambil foto selfie: ${getErrorMessage(e)}');
     } finally {
       _isTakingPicture = false;
       if (mounted) setState(() => _loading = false);

@@ -14,6 +14,7 @@ import '../services/auth_service.dart';
 import '../services/location_service.dart';
 import '../services/sync_engine.dart';
 import '../data/models/pengaturan_presensi.dart';
+import '../core/utils/error_utils.dart';
 
 // ── Pegawai Provider ─────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ class GeofenceNotifier extends Notifier<GeofenceState> {
       return result;
     } catch (e) {
       state = GeofenceState(
-        error: e is Exception ? e.toString() : 'Gagal cek geofence',
+        error: getErrorMessage(e),
       );
       return null;
     }
@@ -178,7 +179,7 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
     } catch (e) {
       state = state.copyWith(
         isRunning: false,
-        lastError: e is Exception ? e.toString() : 'Sync gagal',
+        lastError: getErrorMessage(e),
       );
       return (synced: 0, errors: 1);
     }

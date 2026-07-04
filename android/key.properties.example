@@ -1,0 +1,4 @@
+storePassword=isi_password_keystore_di_sini
+keyPassword=isi_password_kunci_di_sini
+keyAlias=isi_alias_kunci_di_sini
+storeFile=app/upload-keystore.jks

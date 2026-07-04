@@ -36,7 +36,7 @@ String getErrorMessage(dynamic error) {
     return error.toString().replaceFirst('Exception: ', '');
   }
   if (error is Error) {
-    return error.toString();
+    return 'Terjadi kesalahan sistem. Silakan hubungi admin atau coba lagi.';
   }
   if (error is String) {
     return error;

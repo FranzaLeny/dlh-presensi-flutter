@@ -29,11 +29,25 @@ class LocationService {
       );
     }
 
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
-    );
+    Position position;
+    try {
+      position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      ).timeout(
+        const Duration(seconds: 10),
+      );
+    } catch (_) {
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null) {
+        position = lastKnown;
+      } else {
+        throw Exception(
+          'Gagal mendapatkan lokasi. Pastikan GPS aktif dan Anda berada di area terbuka.',
+        );
+      }
+    }
 
     return Coordinates(
       latitude: position.latitude,
