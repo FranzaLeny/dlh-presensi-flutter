@@ -9,6 +9,8 @@ import '../../core/config/env.dart';
 
 const _storage = FlutterSecureStorage();
 
+void Function()? onUnauthenticated;
+
 final Dio apiClient = _createApiClient();
 
 Dio _createApiClient() {
@@ -50,6 +52,9 @@ Dio _createApiClient() {
           await _storage.delete(key: 'device_private_key');
           await _storage.delete(key: 'device_public_key');
         } catch (_) {}
+        if (onUnauthenticated != null) {
+          onUnauthenticated!();
+        }
       }
       handler.next(error);
     },

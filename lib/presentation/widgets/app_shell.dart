@@ -17,8 +17,8 @@ class AppShell extends StatelessWidget {
     if (location.startsWith('/presensi')) return 0;
     if (location.startsWith('/riwayat')) return 1;
     if (location.startsWith('/rekap')) return 2;
-    if (location.startsWith('/profil')) return 3;
-    if (location.startsWith('/pengaturan')) return 4;
+    if (location.startsWith('/absen')) return 3;
+    if (location.startsWith('/profil')) return 4;
     return 0;
   }
 
@@ -31,9 +31,9 @@ class AppShell extends StatelessWidget {
       case 2:
         context.go('/rekap');
       case 3:
-        context.go('/profil');
+        context.go('/absen');
       case 4:
-        context.go('/pengaturan');
+        context.go('/profil');
     }
   }
 
@@ -99,21 +99,21 @@ class AppShell extends StatelessWidget {
                     const Expanded(
                       child: SizedBox(height: 56),
                     ),
-                    // Index 3: Profil
+                    // Index 3: Absen
                     _buildBoxItem(
                       context: context,
                       isSelected: currentIndex == 3,
-                      activeIcon: Icons.person,
-                      inactiveIcon: Icons.person_outline,
+                      activeIcon: Icons.event_busy,
+                      inactiveIcon: Icons.event_busy_outlined,
                       onTap: () => _onTap(context, 3),
                       isDark: isDark,
                     ),
-                    // Index 4: Pengaturan
+                    // Index 4: Profil
                     _buildBoxItem(
                       context: context,
                       isSelected: currentIndex == 4,
-                      activeIcon: Icons.settings,
-                      inactiveIcon: Icons.settings_outlined,
+                      activeIcon: Icons.person,
+                      inactiveIcon: Icons.person_outline,
                       onTap: () => _onTap(context, 4),
                       isDark: isDark,
                     ),

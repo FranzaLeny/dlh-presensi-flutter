@@ -13,9 +13,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/utils/crypto_utils.dart';
 import '../data/local/presensi_dao.dart';
 import '../data/local/settings_dao.dart';
+import '../data/local/hari_libur_dao.dart';
+import '../data/local/absen_dao.dart';
 import '../data/models/pengaturan_presensi.dart';
 import '../data/models/presensi_log.dart';
 import '../data/models/sync_response.dart';
+import '../data/models/hari_libur.dart';
+import '../data/models/presensi_absen.dart';
 import '../data/remote/api_client.dart';
 import 'auth_service.dart';
 import 'time_service.dart';
@@ -60,32 +64,7 @@ Future<void> syncSettings({String? skpdId}) async {
 
     final data = response.data;
     if (data != null) {
-      final latitudeVal = data['latitude'];
-      final longitudeVal = data['longitude'];
-      final radiusVal = data['radius'];
-
-      final pengaturan = PengaturanPresensi(
-        id: (data['id'] ?? data['skpdId'] ?? 'default').toString(),
-        skpdId: data['skpdId'].toString(),
-        namaKantor: data['skpd']?['nama']?.toString(),
-        latitude: latitudeVal is num
-            ? latitudeVal.toDouble()
-            : double.tryParse(latitudeVal?.toString() ?? '0') ?? 0.0,
-        longitude: longitudeVal is num
-            ? longitudeVal.toDouble()
-            : double.tryParse(longitudeVal?.toString() ?? '0') ?? 0.0,
-        radius: radiusVal is num
-            ? radiusVal.toInt()
-            : int.tryParse(radiusVal?.toString() ?? '100') ?? 100,
-        jamMasukMulai: data['jamMasukMulai']?.toString() ?? '07:30:00',
-        jamMasukSelesai: data['jamMasukSelesai']?.toString() ?? '08:30:00',
-        jamIstirahatMulai: data['jamIstirahatMulai']?.toString() ?? '12:00:00',
-        jamIstirahatSelesai:
-            data['jamIstirahatSelesai']?.toString() ?? '13:00:00',
-        jamPulangMulai: data['jamPulangMulai']?.toString() ?? '16:00:00',
-        jamPulangSelesai: data['jamPulangSelesai']?.toString() ?? '17:00:00',
-        updatedAt: data['updatedAt']?.toString(),
-      );
+      final pengaturan = PengaturanPresensi.fromJson(data);
       await SettingsDao.save(pengaturan);
       await TimeService.syncTime();
     }
@@ -96,12 +75,53 @@ Future<void> syncSettings({String? skpdId}) async {
   }
 }
 
-/// Menjalankan sinkronisasi penuh (Pengaturan + Unsynced Logs)
+/// Sinkronisasi data hari libur dari server ke SQLite lokal
+Future<void> syncHariLibur() async {
+  try {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.contains(ConnectivityResult.none)) return;
+
+    final response = await apiClient.get('/umum/presensi/hari-libur');
+    final data = response.data;
+    if (data != null && data['items'] is List) {
+      final List<dynamic> items = data['items'];
+      final list = items.map((item) => HariLibur.fromJson(item)).toList();
+      await HariLiburDao.clear();
+      await HariLiburDao.upsertAll(list);
+    }
+  } catch (err) {
+    debugPrint('Gagal sync hari libur: $err');
+  }
+}
+
+/// Sinkronisasi data absen pegawai dari server ke SQLite lokal
+Future<void> syncAbsenPegawai() async {
+  try {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.contains(ConnectivityResult.none)) return;
+
+    final response = await apiClient.get('/umum/presensi/absen/pegawai');
+    final data = response.data;
+    if (data != null && data['items'] is List) {
+      final List<dynamic> items = data['items'];
+      final list = items.map((item) => PresensiAbsen.fromJson(item)).toList();
+      
+      await AbsenDao.clear();
+      await AbsenDao.upsertAll(list);
+    }
+  } catch (err) {
+    debugPrint('Gagal sync absen pegawai: $err');
+  }
+}
+
+/// Menjalankan sinkronisasi penuh (Pengaturan + Hari Libur + Absen + Unsynced Logs)
 Future<({int synced, int errors})> runFullSync({String? skpdId}) async {
   if (_isSyncing) return (synced: 0, errors: 0);
   _isSyncing = true;
   try {
     await syncSettings(skpdId: skpdId);
+    await syncHariLibur();
+    await syncAbsenPegawai();
     return await syncUnsyncedLogs();
   } finally {
     _isSyncing = false;
@@ -236,13 +256,17 @@ Future<({int synced, int errors})> _syncLogBatch(List<PresensiLog> logsToSync) a
       response.data as Map<String, dynamic>,
     );
 
-    // 4. Tandai sebagai synced
+    // 4. Tandai sebagai synced dan simpan detailnya
     if (syncResponse.synced.isNotEmpty) {
-      final syncedIds = syncResponse.synced.map((item) => item.id).toList();
-      if (syncedIds.isNotEmpty) {
-        await PresensiDao.markAsSynced(syncedIds);
-        syncedCount = syncedIds.length;
+      for (final item in syncResponse.synced) {
+        await PresensiDao.updateSyncStatus(
+          item.id,
+          item.status,
+          item.isLuarRadius,
+          item.keterangan,
+        );
       }
+      syncedCount = syncResponse.synced.length;
     }
 
     if (syncResponse.unSyncedIds.isNotEmpty) {

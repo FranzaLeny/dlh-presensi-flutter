@@ -28,65 +28,23 @@ class SyncResponse {
 
 class SyncedItem {
   final String id;
-  final String pegawaiId;
-  final String pengaturanId;
-  final String tanggal;
-  final String tipe;
-  final String waktu;
-  final String? latitude;
-  final String? longitude;
-  final String? fotoUrl;
   final int status;
-  final String? verifikatorId;
-  final String? waktuVerifikasi;
-  final String? alasanPenolakan;
+  final int isLuarRadius;
   final String? keterangan;
-  final String? deviceId;
-  final String? syncAt;
-  final String createdAt;
-  final String updatedAt;
 
   const SyncedItem({
     required this.id,
-    required this.pegawaiId,
-    required this.pengaturanId,
-    required this.tanggal,
-    required this.tipe,
-    required this.waktu,
-    this.latitude,
-    this.longitude,
-    this.fotoUrl,
     required this.status,
-    this.verifikatorId,
-    this.waktuVerifikasi,
-    this.alasanPenolakan,
+    required this.isLuarRadius,
     this.keterangan,
-    this.deviceId,
-    this.syncAt,
-    required this.createdAt,
-    required this.updatedAt,
   });
 
   factory SyncedItem.fromJson(Map<String, dynamic> json) {
     return SyncedItem(
       id: json['id'] as String,
-      pegawaiId: json['pegawaiId'] as String,
-      pengaturanId: json['pengaturanId'] as String,
-      tanggal: json['tanggal'] as String,
-      tipe: json['tipe'] as String,
-      waktu: json['waktu'] as String,
-      latitude: json['latitude'] as String?,
-      longitude: json['longitude'] as String?,
-      fotoUrl: json['fotoUrl'] as String?,
       status: (json['status'] as num).toInt(),
-      verifikatorId: json['verifikatorId'] as String?,
-      waktuVerifikasi: json['waktuVerifikasi'] as String?,
-      alasanPenolakan: json['alasanPenolakan'] as String?,
+      isLuarRadius: (json['isLuarRadius'] as num?)?.toInt() ?? 0,
       keterangan: json['keterangan'] as String?,
-      deviceId: json['deviceId'] as String?,
-      syncAt: json['syncAt'] as String?,
-      createdAt: json['createdAt'] as String,
-      updatedAt: json['updatedAt'] as String,
     );
   }
 }

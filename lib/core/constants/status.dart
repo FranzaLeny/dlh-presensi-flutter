@@ -32,7 +32,7 @@ const Map<int, String> statusLabel = {
   Status.accepted: 'Diterima',
   Status.finalized: 'Selesai',
   Status.rejected: 'Ditolak',
-  Status.pending: 'Menunggu Verifikasi',
+  Status.pending: 'Menunggu Persetujuan',
   Status.approved: 'Disetujui',
 };
 

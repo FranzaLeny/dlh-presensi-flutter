@@ -10,12 +10,13 @@ class PengaturanPresensi {
   final double latitude;
   final double longitude;
   final int radius; // dalam meter
-  final String jamMasukMulai; // format: HH:mm:ss
-  final String jamMasukSelesai;
+  final String jamMasuk; // format: HH:mm:ss
   final String jamIstirahatMulai;
   final String jamIstirahatSelesai;
-  final String jamPulangMulai;
-  final String jamPulangSelesai;
+  final String jamPulang;
+  final String? tanggalMulai;
+  final String? tanggalBerakhir;
+  final int status;
   final String? updatedAt;
 
   const PengaturanPresensi({
@@ -25,12 +26,13 @@ class PengaturanPresensi {
     required this.latitude,
     required this.longitude,
     this.radius = 100,
-    this.jamMasukMulai = '07:30:00',
-    this.jamMasukSelesai = '08:30:00',
+    this.jamMasuk = '08:00:00',
     this.jamIstirahatMulai = '12:00:00',
     this.jamIstirahatSelesai = '13:00:00',
-    this.jamPulangMulai = '16:00:00',
-    this.jamPulangSelesai = '17:00:00',
+    this.jamPulang = '16:00:00',
+    this.tanggalMulai,
+    this.tanggalBerakhir,
+    this.status = 10,
     this.updatedAt,
   });
 
@@ -39,17 +41,22 @@ class PengaturanPresensi {
     return PengaturanPresensi(
       id: (json['id'] ?? json['skpdId'] ?? 'default') as String,
       skpdId: json['skpdId'] as String,
-      namaKantor: json['namaKantor'] as String?,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      namaKantor: json['skpd']?['nama'] as String?,
+      latitude: (json['latitude'] is String)
+          ? double.parse(json['latitude'] as String)
+          : (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] is String)
+          ? double.parse(json['longitude'] as String)
+          : (json['longitude'] as num).toDouble(),
       radius: (json['radius'] as num?)?.toInt() ?? 100,
-      jamMasukMulai: (json['jamMasukMulai'] as String?) ?? '07:30:00',
-      jamMasukSelesai: (json['jamMasukSelesai'] as String?) ?? '08:30:00',
+      jamMasuk: (json['jamMasuk'] as String?) ?? '08:00:00',
       jamIstirahatMulai: (json['jamIstirahatMulai'] as String?) ?? '12:00:00',
       jamIstirahatSelesai:
           (json['jamIstirahatSelesai'] as String?) ?? '13:00:00',
-      jamPulangMulai: (json['jamPulangMulai'] as String?) ?? '16:00:00',
-      jamPulangSelesai: (json['jamPulangSelesai'] as String?) ?? '17:00:00',
+      jamPulang: (json['jamPulang'] as String?) ?? '16:00:00',
+      tanggalMulai: json['tanggalMulai'] as String?,
+      tanggalBerakhir: json['tanggalBerakhir'] as String?,
+      status: (json['status'] as num?)?.toInt() ?? 10,
       updatedAt: json['updatedAt'] as String?,
     );
   }
@@ -63,12 +70,13 @@ class PengaturanPresensi {
       latitude: _parseDouble(row['latitude']),
       longitude: _parseDouble(row['longitude']),
       radius: _parseInt(row['radius'], defaultValue: 100),
-      jamMasukMulai: row['jam_masuk_mulai']?.toString() ?? '07:30:00',
-      jamMasukSelesai: row['jam_masuk_selesai']?.toString() ?? '08:30:00',
+      jamMasuk: row['jam_masuk']?.toString() ?? '08:00:00',
       jamIstirahatMulai: row['jam_istirahat_mulai']?.toString() ?? '12:00:00',
       jamIstirahatSelesai: row['jam_istirahat_selesai']?.toString() ?? '13:00:00',
-      jamPulangMulai: row['jam_pulang_mulai']?.toString() ?? '16:00:00',
-      jamPulangSelesai: row['jam_pulang_selesai']?.toString() ?? '17:00:00',
+      jamPulang: row['jam_pulang']?.toString() ?? '16:00:00',
+      tanggalMulai: row['tanggal_mulai']?.toString(),
+      tanggalBerakhir: row['tanggal_berakhir']?.toString(),
+      status: _parseInt(row['status'], defaultValue: 10),
       updatedAt: row['updated_at']?.toString(),
     );
   }
@@ -97,12 +105,13 @@ class PengaturanPresensi {
         'latitude': latitude,
         'longitude': longitude,
         'radius': radius,
-        'jam_masuk_mulai': jamMasukMulai,
-        'jam_masuk_selesai': jamMasukSelesai,
+        'jam_masuk': jamMasuk,
         'jam_istirahat_mulai': jamIstirahatMulai,
         'jam_istirahat_selesai': jamIstirahatSelesai,
-        'jam_pulang_mulai': jamPulangMulai,
-        'jam_pulang_selesai': jamPulangSelesai,
+        'jam_pulang': jamPulang,
+        'tanggal_mulai': tanggalMulai,
+        'tanggal_berakhir': tanggalBerakhir,
+        'status': status,
         'updated_at': updatedAt ?? DateTime.now().toIso8601String(),
       };
 }

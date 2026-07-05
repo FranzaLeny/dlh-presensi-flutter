@@ -19,6 +19,8 @@ Future<void> main() async {
   // Inisialisasi database SQLite
   await initDatabase();
 
+  setupUnauthenticatedListener();
+
   runApp(
     const ProviderScope(
       child: PresensiApp(),

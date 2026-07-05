@@ -86,6 +86,27 @@ class PresensiDao {
     );
   }
 
+  /// Update status hasil sinkronisasi dari server
+  static Future<void> updateSyncStatus(
+    String id,
+    int status,
+    int isLuarRadius,
+    String? keterangan,
+  ) async {
+    final db = await getDatabase();
+    await db.update(
+      'presensi_log',
+      {
+        'status': status,
+        'is_luar_radius': isLuarRadius,
+        'keterangan': keterangan,
+        'is_synced': 1,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   /// Ambil semua riwayat presensi dari history
   static Future<List<PresensiLog>> getAll({int limit = 50}) async {
     final db = await getDatabase();

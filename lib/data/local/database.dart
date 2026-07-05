@@ -6,7 +6,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 const String _dbName = 'presensi.db';
-const int _dbVersion = 2;
+const int _dbVersion = 3;
 
 Database? _db;
 
@@ -26,9 +26,12 @@ Future<Database> _initDatabase() async {
     version: _dbVersion,
     onCreate: _onCreate,
     onUpgrade: (db, oldVersion, newVersion) async {
-      if (oldVersion < 2) {
-        await db.execute('DROP TABLE IF EXISTS presensi_log_pending');
-      }
+      // Karena masih dalam tahap development, kita drop dan buat ulang semua tabel
+      await db.execute('DROP TABLE IF EXISTS pengaturan_presensi');
+      await db.execute('DROP TABLE IF EXISTS presensi_log');
+      await db.execute('DROP TABLE IF EXISTS hari_libur');
+      await db.execute('DROP TABLE IF EXISTS presensi_absen');
+      await _onCreate(db, newVersion);
     },
     onConfigure: (db) async {
       // PRAGMA journal_mode mengembalikan baris hasil sehingga harus memakai rawQuery
@@ -48,12 +51,13 @@ Future<void> _onCreate(Database db, int version) async {
       latitude REAL NOT NULL,
       longitude REAL NOT NULL,
       radius INTEGER NOT NULL DEFAULT 100,
-      jam_masuk_mulai TEXT NOT NULL DEFAULT '07:30:00',
-      jam_masuk_selesai TEXT NOT NULL DEFAULT '08:30:00',
+      jam_masuk TEXT NOT NULL DEFAULT '08:00:00',
       jam_istirahat_mulai TEXT NOT NULL DEFAULT '12:00:00',
       jam_istirahat_selesai TEXT NOT NULL DEFAULT '13:00:00',
-      jam_pulang_mulai TEXT NOT NULL DEFAULT '16:00:00',
-      jam_pulang_selesai TEXT NOT NULL DEFAULT '17:00:00',
+      jam_pulang TEXT NOT NULL DEFAULT '16:00:00',
+      tanggal_mulai TEXT,
+      tanggal_berakhir TEXT,
+      status INTEGER NOT NULL DEFAULT 10,
       updated_at TEXT
     )
   ''');
@@ -71,7 +75,7 @@ Future<void> _onCreate(Database db, int version) async {
       foto_path TEXT,
       foto_url TEXT,
       is_luar_radius INTEGER NOT NULL DEFAULT 0,
-      status TEXT NOT NULL DEFAULT 'HADIR',
+      status INTEGER NOT NULL DEFAULT 2,
       keterangan TEXT,
       device_id TEXT,
       is_synced INTEGER NOT NULL DEFAULT 0,
@@ -84,6 +88,37 @@ Future<void> _onCreate(Database db, int version) async {
       ON presensi_log (pegawai_id, tanggal, tipe)
   ''');
 
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS hari_libur (
+      id TEXT NOT NULL,
+      tanggal TEXT NOT NULL,
+      nama TEXT NOT NULL,
+      tipe TEXT NOT NULL,
+      keterangan TEXT,
+      dokumen_url TEXT,
+      created_at TEXT,
+      updated_at TEXT,
+      PRIMARY KEY (id, tanggal)
+    )
+  ''');
+
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS presensi_absen (
+      id TEXT NOT NULL,
+      skpd_id TEXT NOT NULL,
+      pegawai_id TEXT NOT NULL,
+      tanggal TEXT NOT NULL,
+      tipe TEXT NOT NULL,
+      keterangan TEXT,
+      dokumen_url TEXT,
+      status INTEGER NOT NULL DEFAULT 2,
+      created_at TEXT,
+      updated_at TEXT,
+      created_by TEXT,
+      updated_by TEXT,
+      PRIMARY KEY (id, tanggal)
+    )
+  ''');
 }
 
 /// Inisialisasi database — dipanggil sekali saat app mount

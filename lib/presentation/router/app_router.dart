@@ -10,9 +10,12 @@ import '../screens/presensi/presensi_screen.dart';
 import '../screens/riwayat/riwayat_screen.dart';
 import '../screens/rekap/rekap_screen.dart';
 import '../screens/profil/profil_screen.dart';
-import '../screens/pengaturan/pengaturan_screen.dart';
+import '../screens/absen/absen_screen.dart';
+import '../screens/absen/absen_form_screen.dart';
 import '../widgets/app_shell.dart';
 import '../../services/auth_service.dart';
+import '../../data/models/presensi_absen.dart';
+import '../../data/remote/api_client.dart' as remote;
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -32,6 +35,13 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/absen/form',
+      builder: (context, state) {
+        final initialAbsen = state.extra as List<PresensiAbsen>?;
+        return AbsenFormScreen(initialAbsenList: initialAbsen);
+      },
     ),
     ShellRoute(
       navigatorKey: _shellNavigatorKey,
@@ -56,18 +66,24 @@ final GoRouter appRouter = GoRouter(
           ),
         ),
         GoRoute(
-          path: '/profil',
+          path: '/absen',
           pageBuilder: (context, state) => const NoTransitionPage(
-            child: ProfilScreen(),
+            child: AbsenScreen(),
           ),
         ),
         GoRoute(
-          path: '/pengaturan',
+          path: '/profil',
           pageBuilder: (context, state) => const NoTransitionPage(
-            child: PengaturanScreen(),
+            child: ProfilScreen(),
           ),
         ),
       ],
     ),
   ],
 );
+
+void setupUnauthenticatedListener() {
+  remote.onUnauthenticated = () {
+    appRouter.go('/login');
+  };
+}
