@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import '../../../core/utils/error_utils.dart';
 import '../../../data/models/presensi_log.dart';
 import '../../../providers/providers.dart';
 import '../../../services/camera_service.dart';
@@ -58,8 +57,8 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
     final status = await Permission.camera.request();
     if (status.isDenied || status.isPermanentlyDenied) {
       showAlert(
-        'Error',
-        'Izin kamera ditolak. Aktifkan izin kamera untuk presensi luar radius.',
+        'Izin Kamera Ditolak',
+        'Izin kamera ditolak. Silakan aktifkan izin kamera di pengaturan perangkat untuk melakukan presensi luar radius.',
       );
       if (mounted) setState(() => showCamera = false);
       return;
@@ -202,7 +201,7 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
         );
       }
     } catch (e) {
-      showAlert('Error', 'Gagal mengambil foto selfie: ${getErrorMessage(e)}');
+      showAlert('Gagal Mengambil Foto', 'Terjadi kesalahan saat mengambil foto selfie. Silakan coba lagi.');
     } finally {
       isTakingPicture = false;
       if (mounted) setState(() => loading = false);

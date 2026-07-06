@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../../data/local/presensi_dao.dart';
 import '../../../data/models/presensi_log.dart';
 import '../../../services/auth_service.dart';
@@ -89,7 +90,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e is Exception ? e.toString().replaceAll('Exception: ', '') : 'Terjadi kesalahan saat sinkronisasi.'),
+            content: Text(getErrorMessage(e)),
             backgroundColor: AppColors.error,
           ),
         );

@@ -173,7 +173,7 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
         isRunning: false,
         lastSyncAt: DateTime.now().toIso8601String(),
         lastError:
-            result.errors > 0 ? '${result.errors} error(s)' : null,
+            result.errors > 0 ? '${result.errors} data gagal disinkronkan' : null,
       );
       return result;
     } catch (e) {

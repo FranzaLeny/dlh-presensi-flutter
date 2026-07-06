@@ -50,7 +50,7 @@ class _AbsenScreenState extends State<AbsenScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal menyinkronkan data: ${getErrorMessage(e)}'),
+            content: Text(getErrorMessage(e)),
             backgroundColor: AppColors.error,
           ),
         );

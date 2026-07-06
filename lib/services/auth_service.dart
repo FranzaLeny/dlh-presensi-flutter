@@ -117,7 +117,7 @@ class AuthService {
         await _storage.write(key: _apiKeyIdKey, value: data['id'] as String);
       }
     } catch (err) {
-      throw Exception('Gagal mendaftarkan perangkat. $err');
+      throw Exception('Gagal mendaftarkan perangkat. Silakan hubungi admin atau coba lagi.');
     }
   }
 

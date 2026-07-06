@@ -134,7 +134,7 @@ class _AbsenFormScreenState extends State<AbsenFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal menyimpan pengajuan: ${getErrorMessage(e)}'),
+            content: Text(getErrorMessage(e)),
             backgroundColor: AppColors.error,
           ),
         );

@@ -91,21 +91,21 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
     } catch (err) {
       if (mounted) {
         setState(() => loading = false);
-        showAlert('Error Memuat Data', 'Gagal memuat data: ${getErrorMessage(err)}');
+        showAlert('Gagal Memuat Data', getErrorMessage(err));
       }
     }
   }
 
   Future<void> handleAbsen(TipePresensi jenis) async {
     if (pengaturan == null) {
-      showAlert('Error', 'Pengaturan presensi belum dimuat. Pastikan data telah disinkronisasi.');
+      showAlert('Pengaturan Belum Sinkron', 'Pengaturan presensi belum dimuat. Silakan lakukan sinkronisasi data terlebih dahulu.');
       return;
     }
     setState(() => loading = true);
     try {
       final result = await ref.read(geofenceProvider.notifier).checkGeofence(pengaturan!);
       if (result == null) {
-        showAlert('Error', 'Gagal mendapatkan lokasi. Pastikan GPS aktif.');
+        showAlert('Gagal Mendapatkan Lokasi', 'Pastikan GPS perangkat Anda aktif dan izin lokasi telah diberikan.');
         return;
       }
       if (!result.isInRadius) {
@@ -118,8 +118,7 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
       }
       await savePresensi(jenis, result.coordinates.latitude, result.coordinates.longitude, false);
     } catch (err) {
-      final message = getErrorMessage(err);
-      showAlert('Error', message.isNotEmpty ? message : 'Terjadi kesalahan');
+      showAlert('Gagal Presensi', getErrorMessage(err));
     } finally {
       if (mounted) setState(() => loading = false);
     }
@@ -129,14 +128,14 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
   Future<void> savePresensi(TipePresensi jenis, double lat, double lon, bool isLuarRadius, {String? fotoPath}) async {
     final pegawai = await AuthService.getPegawai();
     if (pegawai?.id == null || pengaturan?.id == null) {
-      showAlert('Error', 'Data pegawai atau pengaturan tidak ditemukan');
+      showAlert('Data Tidak Ditemukan', 'Data pegawai atau pengaturan presensi tidak ditemukan di lokal.');
       return;
     }
     DateTime nowDb;
     try {
       nowDb = await TimeService.getEstimatedServerTime();
     } catch (err) {
-      showAlert('Presensi Ditolak', getErrorMessage(err).isNotEmpty ? getErrorMessage(err) : 'Terjadi manipulasi waktu perangkat.');
+      showAlert('Presensi Ditolak', getErrorMessage(err));
       return;
     }
     final deviceTime = DateTime.now().millisecondsSinceEpoch;
@@ -220,7 +219,7 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
       await loadData();
       showAlert('Berhasil', 'Data presensi hari ini yang belum disingkron berhasil dihapus.');
     } catch (_) {
-      showAlert('Error', 'Gagal mereset data presensi.');
+      showAlert('Gagal Reset', 'Gagal menghapus data presensi lokal.');
     } finally {
       if (mounted) setState(() => loading = false);
     }

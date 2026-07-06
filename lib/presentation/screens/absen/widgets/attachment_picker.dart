@@ -59,7 +59,7 @@ Future<void> _pickImage(
       onFilePicked(file.path, file.name, 'image/jpeg');
     }
   } catch (e) {
-    onError('Gagal mengambil gambar: $e');
+    onError('Gagal mengambil gambar. Pastikan izin kamera telah diberikan atau coba lagi.');
   }
 }
 
@@ -80,6 +80,6 @@ Future<void> _pickPdf(
       );
     }
   } catch (e) {
-    onError('Gagal memilih file PDF: $e');
+    onError('Gagal memilih file PDF. Silakan coba lagi.');
   }
 }

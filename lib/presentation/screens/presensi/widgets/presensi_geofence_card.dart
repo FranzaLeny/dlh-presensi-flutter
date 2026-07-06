@@ -71,7 +71,7 @@ class PresensiGeofenceCard extends StatelessWidget {
             )
           else if (geoState.error != null)
             Text(
-              geoState.error!.replaceFirst('Exception: ', ''),
+              geoState.error!,
               style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.error,
