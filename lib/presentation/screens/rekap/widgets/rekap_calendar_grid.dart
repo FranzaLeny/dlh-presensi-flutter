@@ -78,7 +78,7 @@ class RekapCalendarGrid extends StatelessWidget {
           textStyleColor = stColor == Colors.amber ? Colors.black87 : Colors.white;
           cellFontWeight = FontWeight.bold;
         } else {
-          if (stColor == Colors.black) {
+          if (stColor == Colors.black || stColor == Colors.grey) {
             cellBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.06);
             textStyleColor = isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.5);
           } else {

@@ -6,7 +6,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 const String _dbName = 'presensi.db';
-const int _dbVersion = 4;
+const int _dbVersion = 5;
 
 Database? _db;
 
@@ -58,7 +58,8 @@ Future<void> _onCreate(Database db, int version) async {
       tanggal_mulai TEXT,
       tanggal_berakhir TEXT,
       status INTEGER NOT NULL DEFAULT 10,
-      updated_at TEXT
+      updated_at TEXT,
+      jadwal_harian_json TEXT
     )
   ''');
 

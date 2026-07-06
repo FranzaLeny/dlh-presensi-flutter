@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'jadwal_harian.dart';
+
 // ====================================
 // Model: PengaturanPresensi — Pengaturan per SKPD
 // ====================================
@@ -18,6 +21,7 @@ class PengaturanPresensi {
   final String? tanggalBerakhir;
   final int status;
   final String? updatedAt;
+  final List<JadwalHarian>? jadwalHarian;
 
   const PengaturanPresensi({
     required this.id,
@@ -34,6 +38,7 @@ class PengaturanPresensi {
     this.tanggalBerakhir,
     this.status = 10,
     this.updatedAt,
+    this.jadwalHarian,
   });
 
   /// Dari response API (JSON camelCase)
@@ -58,6 +63,11 @@ class PengaturanPresensi {
       tanggalBerakhir: json['tanggalBerakhir'] as String?,
       status: (json['status'] as num?)?.toInt() ?? 10,
       updatedAt: json['updatedAt'] as String?,
+      jadwalHarian: json['jadwalHarian'] != null
+          ? (json['jadwalHarian'] as List)
+              .map((e) => JadwalHarian.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 
@@ -78,6 +88,11 @@ class PengaturanPresensi {
       tanggalBerakhir: row['tanggal_berakhir']?.toString(),
       status: _parseInt(row['status'], defaultValue: 10),
       updatedAt: row['updated_at']?.toString(),
+      jadwalHarian: row['jadwal_harian_json'] != null
+          ? (jsonDecode(row['jadwal_harian_json'] as String) as List)
+              .map((e) => JadwalHarian.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 
@@ -113,5 +128,8 @@ class PengaturanPresensi {
         'tanggal_berakhir': tanggalBerakhir,
         'status': status,
         'updated_at': updatedAt ?? DateTime.now().toIso8601String(),
+        'jadwal_harian_json': jadwalHarian != null
+            ? jsonEncode(jadwalHarian!.map((e) => e.toJson()).toList())
+            : null,
       };
 }

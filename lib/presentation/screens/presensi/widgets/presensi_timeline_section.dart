@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../data/models/presensi_log.dart';
+import '../../../../data/models/pengaturan_presensi.dart';
 import '../../../widgets/timeline_widget.dart';
 
 class PresensiTimelineSection extends StatelessWidget {
@@ -7,6 +8,8 @@ class PresensiTimelineSection extends StatelessWidget {
   final PresensiLog? mulaiIstirahatLog;
   final PresensiLog? selesaiIstirahatLog;
   final PresensiLog? pulangLog;
+  final PengaturanPresensi? pengaturan;
+  final bool isLibur;
   final bool isDark;
   final Color cardBg;
   final Color textColor;
@@ -17,6 +20,8 @@ class PresensiTimelineSection extends StatelessWidget {
     required this.mulaiIstirahatLog,
     required this.selesaiIstirahatLog,
     required this.pulangLog,
+    this.pengaturan,
+    this.isLibur = false,
     required this.isDark,
     required this.cardBg,
     required this.textColor,
@@ -55,6 +60,8 @@ class PresensiTimelineSection extends StatelessWidget {
             mulaiIstirahatLog: mulaiIstirahatLog,
             selesaiIstirahatLog: selesaiIstirahatLog,
             pulangLog: pulangLog,
+            pengaturan: pengaturan,
+            isLibur: isLibur,
             isDark: isDark,
           ),
         ],

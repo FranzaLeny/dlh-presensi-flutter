@@ -11,8 +11,11 @@ import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/uuid_utils.dart';
 import '../../../data/local/presensi_dao.dart';
 import '../../../data/local/settings_dao.dart';
+import '../../../data/local/absen_dao.dart';
+import '../../../data/local/hari_libur_dao.dart';
 import '../../../data/models/pengaturan_presensi.dart';
 import '../../../data/models/presensi_log.dart';
+import '../../../data/models/presensi_absen.dart';
 import '../../../providers/providers.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/sync_engine.dart';
@@ -24,6 +27,9 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
   DateTime currentTime = DateTime.now();
   PengaturanPresensi? pengaturan;
   List<PresensiLog> todayLogs = [];
+  PresensiAbsen? approvedAbsence;
+  bool isTodayLibur = false;
+  String? liburNama;
   bool timeMismatch = false;
   bool retryingTime = false;
   Timer? timer;
@@ -73,17 +79,93 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
       final pegawai = await AuthService.getPegawai();
       final pegawaiId = pegawai?.id ?? 'unknown';
       var logs = await PresensiDao.getByDate(pegawaiId, today);
+      final todayAbsences = await AbsenDao.getByDate(today);
+      final activeAbsence = todayAbsences.where((a) => a.status == Status.approved || a.status == 20).firstOrNull;
+      
+      // Resolve holiday status
+      final parsedDate = DateTime.tryParse(today) ?? DateTime.now();
+      final dayOfWeek = parsedDate.weekday;
+      final holiday = await HariLiburDao.getByDate(today);
+      final dayOfWeekIndex = parsedDate.weekday % 7;
+      final override = pengaturan?.jadwalHarian?.where((j) => j.hari == dayOfWeekIndex).firstOrNull;
+      
+      bool resolvedLibur = false;
+      String? resolvedLiburNama;
+
+      if (holiday != null) {
+        resolvedLibur = true;
+        resolvedLiburNama = holiday.nama;
+      } else if (override != null) {
+        if (override.isLibur == 1) {
+          resolvedLibur = true;
+          resolvedLiburNama = 'Libur Hari ${_getNamaHari(dayOfWeek)}';
+        } else {
+          resolvedLibur = false;
+        }
+      } else {
+        final isWeekend = dayOfWeek == DateTime.saturday || dayOfWeek == DateTime.sunday;
+        if (isWeekend) {
+          resolvedLibur = true;
+          resolvedLiburNama = 'Libur Hari ${_getNamaHari(dayOfWeek)}';
+        }
+      }
+      
       if (mounted) {
         setState(() {
           todayLogs = logs;
+          approvedAbsence = activeAbsence;
+          isTodayLibur = resolvedLibur;
+          liburNama = resolvedLiburNama;
           loading = false;
         });
       }
       final now = DateTime.now();
       try {
+        if (pegawai?.skpdId != null) {
+          await syncSettings(skpdId: pegawai!.skpdId);
+          final updatedSettings = await SettingsDao.getFirst();
+          if (updatedSettings != null) {
+            pengaturan = updatedSettings;
+          }
+        }
         await syncLogsBulanan(now.year, now.month);
         logs = await PresensiDao.getByDate(pegawaiId, today);
-        if (mounted) setState(() => todayLogs = logs);
+        final updatedAbsences = await AbsenDao.getByDate(today);
+        final updatedActiveAbsence = updatedAbsences.where((a) => a.status == Status.approved || a.status == 20).firstOrNull;
+        
+        final dayOfWeekIndex = parsedDate.weekday % 7;
+        final updatedOverride = pengaturan?.jadwalHarian?.where((j) => j.hari == dayOfWeekIndex).firstOrNull;
+        
+        final updatedHoliday = await HariLiburDao.getByDate(today);
+        bool updatedResolvedLibur = false;
+        String? updatedResolvedLiburNama;
+
+        if (updatedHoliday != null) {
+          updatedResolvedLibur = true;
+          updatedResolvedLiburNama = updatedHoliday.nama;
+        } else if (updatedOverride != null) {
+          if (updatedOverride.isLibur == 1) {
+            updatedResolvedLibur = true;
+            updatedResolvedLiburNama = 'Libur Hari ${_getNamaHari(dayOfWeek)}';
+          } else {
+            updatedResolvedLibur = false;
+          }
+        } else {
+          final isWeekend = dayOfWeek == DateTime.saturday || dayOfWeek == DateTime.sunday;
+          if (isWeekend) {
+            updatedResolvedLibur = true;
+            updatedResolvedLiburNama = 'Libur Hari ${_getNamaHari(dayOfWeek)}';
+          }
+        }
+        
+        if (mounted) {
+          setState(() {
+            todayLogs = logs;
+            approvedAbsence = updatedActiveAbsence;
+            isTodayLibur = updatedResolvedLibur;
+            liburNama = updatedResolvedLiburNama;
+          });
+        }
       } catch (_) {}
       if (pengaturan != null) {
         ref.read(geofenceProvider.notifier).checkGeofence(pengaturan!);
@@ -222,6 +304,27 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
       showAlert('Gagal Reset', 'Gagal menghapus data presensi lokal.');
     } finally {
       if (mounted) setState(() => loading = false);
+    }
+  }
+
+  String _getNamaHari(int weekday) {
+    switch (weekday) {
+      case 1:
+        return 'Senin';
+      case 2:
+        return 'Selasa';
+      case 3:
+        return 'Rabu';
+      case 4:
+        return 'Kamis';
+      case 5:
+        return 'Jumat';
+      case 6:
+        return 'Sabtu';
+      case 7:
+        return 'Minggu';
+      default:
+        return '';
     }
   }
 }

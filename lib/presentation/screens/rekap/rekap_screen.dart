@@ -15,6 +15,7 @@ import '../../../data/models/pengaturan_presensi.dart';
 import '../../../data/models/hari_libur.dart';
 import '../../../data/models/presensi_absen.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/sync_engine.dart';
 import 'widgets/rekap_calendar_grid.dart';
 import 'widgets/rekap_detail_card.dart';
 import 'widgets/rekap_month_selector.dart';
@@ -66,8 +67,6 @@ class _RekapScreenState extends State<RekapScreen> {
     final parsedDate = DateTime.parse(dateStr);
     final weekday = parsedDate.weekday;
     final isWeekend = weekday == DateTime.saturday || weekday == DateTime.sunday;
-    final isHolidayDate = _holidays.any((h) => h.tanggal == dateStr);
-    final isLibur = isWeekend || isHolidayDate;
 
     // 1. Cari Pengaturan Presensi
     PengaturanPresensi? activeSetting;
@@ -96,17 +95,49 @@ class _RekapScreenState extends State<RekapScreen> {
       activeSetting = _settings.first;
     }
 
+    // 1b. Resolusi override jadwal harian
+    final dayOfWeek = parsedDate.weekday % 7; // 0 = Minggu, 6 = Sabtu
+    final override = activeSetting?.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
+
+    String jamMasuk = activeSetting?.jamMasuk ?? '08:00:00';
+    String jamPulang = activeSetting?.jamPulang ?? '16:00:00';
+    String jamIstirahatMulai = activeSetting?.jamIstirahatMulai ?? '12:00:00';
+    String jamIstirahatSelesai = activeSetting?.jamIstirahatSelesai ?? '13:00:00';
+    int? isLiburOverride;
+
+    if (override != null) {
+      jamMasuk = override.jamMasuk;
+      jamPulang = override.jamPulang;
+      jamIstirahatMulai = override.jamIstirahatMulai ?? '00:00:00';
+      jamIstirahatSelesai = override.jamIstirahatSelesai ?? '00:00:00';
+      isLiburOverride = override.isLibur;
+    }
+
+    final isHolidayDate = _holidays.any((h) => h.tanggal == dateStr);
+    bool isLibur = isWeekend || isHolidayDate;
+    if (isLiburOverride == 1) {
+      isLibur = true;
+    } else if (isLiburOverride == 0 && !isHolidayDate) {
+      isLibur = false; // Weekend override to workday
+    }
+
     // 2. Hitung jamKerjaEfektif
     double jamKerjaEfektif = 0.0;
     if (!isLibur && activeSetting != null) {
-      final startMin = _timeStringToMinutes(activeSetting.jamMasuk);
-      final endMin = _timeStringToMinutes(activeSetting.jamPulang);
-      final breakStartMin = _timeStringToMinutes(activeSetting.jamIstirahatMulai);
-      final breakEndMin = _timeStringToMinutes(activeSetting.jamIstirahatSelesai);
+      final startMin = _timeStringToMinutes(jamMasuk);
+      final endMin = _timeStringToMinutes(jamPulang);
       final totalMin = endMin - startMin;
-      final breakMin = breakStartMin < breakEndMin ? (breakEndMin - breakStartMin) : 0;
-      jamKerjaEfektif = (totalMin - breakMin) / 60.0;
-      if (jamKerjaEfektif < 0) jamKerjaEfektif = 0.0;
+      
+      double breakMin = 0.0;
+      if (jamIstirahatMulai.isNotEmpty && jamIstirahatSelesai.isNotEmpty && 
+          jamIstirahatMulai != '00:00:00' && jamIstirahatSelesai != '00:00:00') {
+        final bStart = _timeStringToMinutes(jamIstirahatMulai);
+        final bEnd = _timeStringToMinutes(jamIstirahatSelesai);
+        breakMin = bStart < bEnd ? (bEnd - bStart).toDouble() : 0.0;
+      }
+      
+      final durasiEfektif = (totalMin - breakMin) / 60.0;
+      jamKerjaEfektif = durasiEfektif < 0 ? 0.0 : double.parse(durasiEfektif.toStringAsFixed(2));
     }
 
     // 3. Cek Absen Pengajuan (Sakit, Tugas, Cuti)
@@ -129,32 +160,58 @@ class _RekapScreenState extends State<RekapScreen> {
         statusColor = Colors.purple; // ungu
       }
 
-      if (!isLibur) {
+      if (approvedAbsence.tipe == 'tugas' || !isLibur) {
         jamKerja = jamKerjaEfektif; // Dianggap hadir penuh
       } else {
         jamKerja = 0.0;
       }
     } else if (isLibur) {
       statusText = 'libur';
-      statusColor = Colors.black; // hitam
+      statusColor = Colors.grey; // abu-abu
 
       // Jika libur, jamKerja bisa dihitung jika ada log presensi masuk & pulang lengkap
       final masukLog = dayLogs.where((l) => l.tipe == TipePresensi.masuk).firstOrNull;
       final pulangLog = dayLogs.where((l) => l.tipe == TipePresensi.pulang).firstOrNull;
       if (masukLog != null && pulangLog != null) {
-        final tMasuk = DateTime.parse(masukLog.waktu);
-        final tPulang = DateTime.parse(pulangLog.waktu);
-        final elapsedMin = tPulang.difference(tMasuk).inMinutes;
-        
-        int breakMin = 0;
+        final tMasuk = DateTime.parse(masukLog.waktu).toUtc().add(const Duration(hours: 8));
+        final tPulang = DateTime.parse(pulangLog.waktu).toUtc().add(const Duration(hours: 8));
+        final selisihMs = tPulang.difference(tMasuk).inMilliseconds;
+        final jumlahJamKerjaFull = selisihMs / (1000.0 * 60.0 * 60.0);
+
+        double durasiIstirahat = 0.0;
+        bool hasValidActualRest = false;
+
         final mulaiIstirahat = dayLogs.where((l) => l.tipe == TipePresensi.mulaiIstirahat).firstOrNull;
         final selesaiIstirahat = dayLogs.where((l) => l.tipe == TipePresensi.selesaiIstirahat).firstOrNull;
+
         if (mulaiIstirahat != null && selesaiIstirahat != null) {
-          breakMin = DateTime.parse(selesaiIstirahat.waktu).difference(DateTime.parse(mulaiIstirahat.waktu)).inMinutes;
+          final tMulai = DateTime.parse(mulaiIstirahat.waktu).toUtc().add(const Duration(hours: 8));
+          final tSelesai = DateTime.parse(selesaiIstirahat.waktu).toUtc().add(const Duration(hours: 8));
+          final diffMs = tSelesai.difference(tMulai).inMilliseconds;
+          final actualDur = diffMs / (1000.0 * 60.0 * 60.0);
+          if (actualDur > 0) {
+            durasiIstirahat = actualDur;
+            hasValidActualRest = true;
+          }
         }
-        
-        jamKerja = (elapsedMin - breakMin) / 60.0;
-        if (jamKerja < 0) jamKerja = 0.0;
+
+        if (!hasValidActualRest) {
+          final bStartMin = _timeStringToMinutes(jamIstirahatMulai);
+          final bEndMin = _timeStringToMinutes(jamIstirahatSelesai);
+          final masukMin = tMasuk.hour * 60 + tMasuk.minute;
+          final pulangMin = tPulang.hour * 60 + tPulang.minute;
+
+          if (masukMin < bStartMin && pulangMin > bEndMin) {
+            if (bStartMin < bEndMin) {
+              durasiIstirahat = (bEndMin - bStartMin) / 60.0;
+            }
+          }
+        }
+
+        final jumlahJamKerja = jumlahJamKerjaFull - durasiIstirahat;
+        jamKerja = jumlahJamKerja < 0.0 ? 0.0 : double.parse(jumlahJamKerja.toStringAsFixed(2));
+        statusText = 'hadir';
+        statusColor = Colors.green;
       }
     } else {
       // Hari kerja & tidak ada absen
@@ -165,19 +222,43 @@ class _RekapScreenState extends State<RekapScreen> {
         statusText = 'hadir';
         statusColor = Colors.green; // hijau
 
-        final tMasuk = DateTime.parse(masukLog.waktu);
-        final tPulang = DateTime.parse(pulangLog.waktu);
-        final elapsedMin = tPulang.difference(tMasuk).inMinutes;
-        
-        int breakMin = 0;
+        final tMasuk = DateTime.parse(masukLog.waktu).toUtc().add(const Duration(hours: 8));
+        final tPulang = DateTime.parse(pulangLog.waktu).toUtc().add(const Duration(hours: 8));
+        final selisihMs = tPulang.difference(tMasuk).inMilliseconds;
+        final jumlahJamKerjaFull = selisihMs / (1000.0 * 60.0 * 60.0);
+
+        double durasiIstirahat = 0.0;
+        bool hasValidActualRest = false;
+
         final mulaiIstirahat = dayLogs.where((l) => l.tipe == TipePresensi.mulaiIstirahat).firstOrNull;
         final selesaiIstirahat = dayLogs.where((l) => l.tipe == TipePresensi.selesaiIstirahat).firstOrNull;
+
         if (mulaiIstirahat != null && selesaiIstirahat != null) {
-          breakMin = DateTime.parse(selesaiIstirahat.waktu).difference(DateTime.parse(mulaiIstirahat.waktu)).inMinutes;
+          final tMulai = DateTime.parse(mulaiIstirahat.waktu).toUtc().add(const Duration(hours: 8));
+          final tSelesai = DateTime.parse(selesaiIstirahat.waktu).toUtc().add(const Duration(hours: 8));
+          final diffMs = tSelesai.difference(tMulai).inMilliseconds;
+          final actualDur = diffMs / (1000.0 * 60.0 * 60.0);
+          if (actualDur > 0) {
+            durasiIstirahat = actualDur;
+            hasValidActualRest = true;
+          }
         }
-        
-        jamKerja = (elapsedMin - breakMin) / 60.0;
-        if (jamKerja < 0) jamKerja = 0.0;
+
+        if (!hasValidActualRest) {
+          final bStartMin = _timeStringToMinutes(jamIstirahatMulai);
+          final bEndMin = _timeStringToMinutes(jamIstirahatSelesai);
+          final masukMin = tMasuk.hour * 60 + tMasuk.minute;
+          final pulangMin = tPulang.hour * 60 + tPulang.minute;
+
+          if (masukMin < bStartMin && pulangMin > bEndMin) {
+            if (bStartMin < bEndMin) {
+              durasiIstirahat = (bEndMin - bStartMin) / 60.0;
+            }
+          }
+        }
+
+        final jumlahJamKerja = jumlahJamKerjaFull - durasiIstirahat;
+        jamKerja = jumlahJamKerja < 0.0 ? 0.0 : double.parse(jumlahJamKerja.toStringAsFixed(2));
       } else {
         statusText = 'tidak_lengkap';
         statusColor = Colors.red; // merah
@@ -235,6 +316,36 @@ class _RekapScreenState extends State<RekapScreen> {
       _selectedDate = '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-01';
     });
     _loadData();
+  }
+
+  Future<void> _handleSync() async {
+    setState(() => _loading = true);
+    try {
+      final pegawai = await AuthService.getPegawai();
+      if (pegawai?.skpdId != null) {
+        await syncSettings(skpdId: pegawai!.skpdId);
+      }
+      final res = await syncLogsBulanan(_selectedYear, _selectedMonth);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Berhasil menyelaraskan ${res.synced} data presensi.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal menyelaraskan data presensi.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      await _loadData();
+    }
   }
 
   @override
@@ -295,7 +406,6 @@ class _RekapScreenState extends State<RekapScreen> {
 
     final lengkapCount = totalHadir;
     final tidakLengkapCount = totalTidakLengkap;
-    final totalHariAbsen = grouped.keys.length;
 
     final persentaseJamKerja = monthlyJamKerjaEfektifTotal > 0
         ? (monthlyJamKerjaActualTotal / monthlyJamKerjaEfektifTotal) * 100.0
@@ -309,6 +419,25 @@ class _RekapScreenState extends State<RekapScreen> {
             style: TextStyle(fontWeight: FontWeight.w700, color: textColor)),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: isDark ? Colors.white24 : Colors.black12,
+                  width: 1.5,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: IconButton(
+                icon: Icon(Icons.sync, color: textColor),
+                tooltip: 'Tarik Data Server',
+                onPressed: _loading ? null : _handleSync,
+              ),
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -321,38 +450,7 @@ class _RekapScreenState extends State<RekapScreen> {
             onNextMonth: () => _changeMonth(1),
           ),
 
-          // ── Stats Cards ─────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                _StatCard(
-                  label: 'Absen Lengkap',
-                  value: lengkapCount.toString(),
-                  color: AppColors.success,
-                  bgColor: cardBg,
-                  textColor: textColor,
-                ),
-                const SizedBox(width: 8),
-                _StatCard(
-                  label: 'Tidak Lengkap',
-                  value: tidakLengkapCount.toString(),
-                  color: AppColors.warning,
-                  bgColor: cardBg,
-                  textColor: textColor,
-                ),
-                const SizedBox(width: 8),
-                _StatCard(
-                  label: 'Total Hari',
-                  value: totalHariAbsen.toString(),
-                  color: AppColors.primary,
-                  bgColor: cardBg,
-                  textColor: textColor,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
 
           // ── Calendar & Details ──────────────────────────────
           Expanded(
@@ -364,6 +462,21 @@ class _RekapScreenState extends State<RekapScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // ── Monthly Summary Card ────────────────────
+                        _MonthlySummaryCard(
+                          jamKerjaEfektif: monthlyJamKerjaEfektifTotal,
+                          jamKerjaActual: monthlyJamKerjaActualTotal,
+                          persentase: persentaseJamKerja,
+                          totalTugas: totalTugas,
+                          totalCuti: totalCuti,
+                          totalSakit: totalSakit,
+                          lengkapCount: lengkapCount,
+                          tidakLengkapCount: tidakLengkapCount,
+                          cardBg: cardBg,
+                          textColor: textColor,
+                        ),
+                        const SizedBox(height: 16),
+
                         RekapCalendarGrid(
                           selectedYear: _selectedYear,
                           selectedMonth: _selectedMonth,
@@ -375,19 +488,6 @@ class _RekapScreenState extends State<RekapScreen> {
                           onDateSelected: (dateStr) {
                             setState(() => _selectedDate = dateStr);
                           },
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // ── Monthly Summary Card ────────────────────
-                        _MonthlySummaryCard(
-                          jamKerjaEfektif: monthlyJamKerjaEfektifTotal,
-                          jamKerjaActual: monthlyJamKerjaActualTotal,
-                          persentase: persentaseJamKerja,
-                          totalTugas: totalTugas,
-                          totalCuti: totalCuti,
-                          totalSakit: totalSakit,
-                          cardBg: cardBg,
-                          textColor: textColor,
                         ),
                         const SizedBox(height: 16),
 
@@ -421,6 +521,8 @@ class _MonthlySummaryCard extends StatelessWidget {
   final int totalTugas;
   final int totalCuti;
   final int totalSakit;
+  final int lengkapCount;
+  final int tidakLengkapCount;
   final Color cardBg;
   final Color textColor;
 
@@ -431,6 +533,8 @@ class _MonthlySummaryCard extends StatelessWidget {
     required this.totalTugas,
     required this.totalCuti,
     required this.totalSakit,
+    required this.lengkapCount,
+    required this.tidakLengkapCount,
     required this.cardBg,
     required this.textColor,
   });
@@ -536,6 +640,8 @@ class _MonthlySummaryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
+              _AbsenceMiniStat(label: 'Lengkap', value: lengkapCount, color: AppColors.success, textColor: textColor),
+              _AbsenceMiniStat(label: 'Tdk Lengkap', value: tidakLengkapCount, color: AppColors.error, textColor: textColor),
               _AbsenceMiniStat(label: 'Tugas', value: totalTugas, color: Colors.blue, textColor: textColor),
               _AbsenceMiniStat(label: 'Cuti', value: totalCuti, color: Colors.purple, textColor: textColor),
               _AbsenceMiniStat(label: 'Sakit', value: totalSakit, color: Colors.amber, textColor: textColor),
@@ -582,42 +688,4 @@ class _AbsenceMiniStat extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final Color bgColor;
-  final Color textColor;
 
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.bgColor,
-    required this.textColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Text(value,
-                style: TextStyle(
-                    fontSize: 28, fontWeight: FontWeight.w700, color: color)),
-            const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(fontSize: 11, color: textColor),
-                textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
-  }
-}

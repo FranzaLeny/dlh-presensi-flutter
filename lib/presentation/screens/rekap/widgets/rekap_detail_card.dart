@@ -51,7 +51,7 @@ class RekapDetailCard extends StatelessWidget {
       case 'hadir':
         return Colors.green;
       case 'libur':
-        return Colors.black;
+        return Colors.grey;
       case 'tidak_lengkap':
         return Colors.red;
       case 'sakit':
@@ -63,6 +63,49 @@ class RekapDetailCard extends StatelessWidget {
       default:
         return Colors.grey;
     }
+  }
+
+  Color _getBadgeTextColor(String status, bool isDark) {
+    if (isDark) {
+      switch (status) {
+        case 'hadir':
+          return const Color(0xFF81C784); // light green
+        case 'libur':
+          return const Color(0xFFE0E0E0); // light grey
+        case 'tidak_lengkap':
+          return const Color(0xFFE57373); // light red
+        case 'sakit':
+          return const Color(0xFFFFD54F); // light amber
+        case 'tugas':
+          return const Color(0xFF64B5F6); // light blue
+        case 'cuti':
+          return const Color(0xFFBA68C8); // light purple
+        default:
+          return Colors.white70;
+      }
+    } else {
+      switch (status) {
+        case 'hadir':
+          return const Color(0xFF1E4620); // dark green
+        case 'libur':
+          return const Color(0xFF333333); // dark grey
+        case 'tidak_lengkap':
+          return const Color(0xFF721C24); // dark red
+        case 'sakit':
+          return const Color(0xFF856404); // dark amber
+        case 'tugas':
+          return const Color(0xFF004085); // dark blue
+        case 'cuti':
+          return const Color(0xFF381460); // dark purple
+        default:
+          return const Color(0xFF333333);
+      }
+    }
+  }
+
+  Color _getBadgeBgColor(String status, bool isDark) {
+    final baseColor = _getStatusColor(status);
+    return baseColor.withValues(alpha: isDark ? 0.2 : 0.15);
   }
 
   @override
@@ -118,21 +161,19 @@ class RekapDetailCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: stColor.withValues(alpha: 0.15),
+                      color: _getBadgeBgColor(statusText, isDark),
                       borderRadius: BorderRadius.circular(8),
-                      border: stColor == Colors.black
-                          ? Border.all(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.2)
-                                  : Colors.black.withValues(alpha: 0.1))
-                          : null,
+                      border: Border.all(
+                        color: _getBadgeTextColor(statusText, isDark).withValues(alpha: 0.25),
+                        width: 1.2,
+                      ),
                     ),
                     child: Text(
                       _getStatusLabel(statusText),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: stColor == Colors.black && isDark ? Colors.white70 : stColor,
+                        color: _getBadgeTextColor(statusText, isDark),
                       ),
                     ),
                   ),

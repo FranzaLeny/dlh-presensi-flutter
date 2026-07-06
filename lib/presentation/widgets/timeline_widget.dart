@@ -8,12 +8,15 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/status.dart';
 import '../../core/utils/date_utils.dart' as date_utils;
 import '../../data/models/presensi_log.dart';
+import '../../data/models/pengaturan_presensi.dart';
 
 class TimelineWidget extends StatelessWidget {
   final PresensiLog? masukLog;
   final PresensiLog? mulaiIstirahatLog;
   final PresensiLog? selesaiIstirahatLog;
   final PresensiLog? pulangLog;
+  final PengaturanPresensi? pengaturan;
+  final bool isLibur;
   final bool isDark;
 
   const TimelineWidget({
@@ -22,35 +25,66 @@ class TimelineWidget extends StatelessWidget {
     this.mulaiIstirahatLog,
     this.selesaiIstirahatLog,
     this.pulangLog,
+    this.pengaturan,
+    this.isLibur = false,
     this.isDark = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Get target times for today
+    final dayOfWeek = DateTime.now().weekday % 7; // 0 = Minggu, 6 = Sabtu
+    final override = pengaturan?.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
+
+    String jamMasuk = isLibur ? '' : (override?.jamMasuk ?? pengaturan?.jamMasuk ?? '08:00:00');
+    String jamPulang = isLibur ? '' : (override?.jamPulang ?? pengaturan?.jamPulang ?? '16:00:00');
+    String jamIstirahatMulai = isLibur ? '' : (override?.jamIstirahatMulai ?? pengaturan?.jamIstirahatMulai ?? '12:00:00');
+    String jamIstirahatSelesai = isLibur ? '' : (override?.jamIstirahatSelesai ?? pengaturan?.jamIstirahatSelesai ?? '13:00:00');
+
+    // Format target times to HH:mm
+    String formatTargetTime(String timeStr) {
+      if (timeStr.isEmpty) return '—';
+      try {
+        final parts = timeStr.split(':');
+        return '${parts[0].padLeft(2, '0')}:${parts[1].padLeft(2, '0')}';
+      } catch (_) {
+        return '—';
+      }
+    }
+
+    final targetMasuk = formatTargetTime(jamMasuk);
+    final targetPulang = formatTargetTime(jamPulang);
+    final targetIstirahatMulai = formatTargetTime(jamIstirahatMulai);
+    final targetIstirahatSelesai = formatTargetTime(jamIstirahatSelesai);
+
     final steps = [
       _TimelineStep(
         label: 'Presensi Masuk',
         log: masukLog,
         color: AppColors.absenMasuk,
         icon: Icons.login_rounded,
+        targetTime: targetMasuk,
       ),
       _TimelineStep(
         label: 'Keluar Istirahat',
         log: mulaiIstirahatLog,
         color: AppColors.absenIstirahatMulai,
         icon: Icons.coffee_rounded,
+        targetTime: targetIstirahatMulai,
       ),
       _TimelineStep(
         label: 'Masuk Istirahat',
         log: selesaiIstirahatLog,
         color: AppColors.absenIstirahatSelesai,
         icon: Icons.directions_run_rounded,
+        targetTime: targetIstirahatSelesai,
       ),
       _TimelineStep(
         label: 'Presensi Pulang',
         log: pulangLog,
         color: AppColors.absenPulang,
         icon: Icons.logout_rounded,
+        targetTime: targetPulang,
       ),
     ];
 
@@ -133,6 +167,7 @@ class TimelineWidget extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Top Row: Label and Target Time (with Icon)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -147,70 +182,88 @@ class TimelineWidget extends StatelessWidget {
                           Row(
                             children: [
                               Text(
-                                timeStr,
+                                step.targetTime,
                                 style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: subtextColor,
                                   fontFeatures: const [
                                     FontFeature.tabularFigures()
                                   ],
-                                  color: hasLog ? textColor : subtextColor,
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Icon(
                                 step.icon,
                                 size: 16,
-                                color: step.color,
+                                color: hasLog ? step.color : subtextColor,
                               ),
                             ],
                           ),
                         ],
                       ),
+                      
+                      // Bottom Row (if log exists): Status Badges on left, Actual Time on right
                       if (step.log != null) ...[
                         const SizedBox(height: 6),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: step.log!.status == Status.approved
-                                    ? AppColors.success.withValues(alpha: 0.15)
-                                    : AppColors.error.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                getStatusLabel(step.log!.status),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: step.log!.status == Status.approved
-                                      ? AppColors.success
-                                      : AppColors.error,
-                                ),
-                              ),
-                            ),
-                            if (step.log!.isLuarRadius > 0) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color:
-                                      AppColors.warning.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text(
-                                  'WFA',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.warning,
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: step.log!.status == Status.approved
+                                        ? AppColors.success.withValues(alpha: 0.15)
+                                        : AppColors.error.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    getStatusLabel(step.log!.status),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: step.log!.status == Status.approved
+                                          ? AppColors.success
+                                          : AppColors.error,
+                                    ),
                                   ),
                                 ),
+                                if (step.log!.isLuarRadius > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          AppColors.warning.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text(
+                                      'WFA',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.warning,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            Text(
+                              timeStr,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: textColor,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
                               ),
-                            ],
+                            ),
                           ],
                         ),
                       ],
@@ -231,11 +284,13 @@ class _TimelineStep {
   final PresensiLog? log;
   final Color color;
   final IconData icon;
+  final String targetTime;
 
   const _TimelineStep({
     required this.label,
     this.log,
     required this.color,
     required this.icon,
+    required this.targetTime,
   });
 }

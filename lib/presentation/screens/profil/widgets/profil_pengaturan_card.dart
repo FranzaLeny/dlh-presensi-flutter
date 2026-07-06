@@ -90,21 +90,67 @@ class ProfilPengaturanCard extends StatelessWidget {
               subtextColor: subtextColor,
             ),
             _InfoRow(
+              label: 'Status Hari Ini',
+              value: () {
+                final today = DateTime.now();
+                final dayOfWeek = today.weekday % 7;
+                final override = pengaturan!.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
+                if (override != null) {
+                  return override.isLibur == 1 ? 'Libur (Override)' : 'Kerja (Override)';
+                }
+                final isWeekend = today.weekday == DateTime.saturday || today.weekday == DateTime.sunday;
+                return isWeekend ? 'Libur (Akhir Pekan)' : 'Hari Kerja';
+              }(),
+              textColor: textColor,
+              subtextColor: subtextColor,
+            ),
+            _InfoRow(
               label: 'Presensi Masuk',
-              value: pengaturan!.jamMasuk.substring(0, 5),
+              value: () {
+                final today = DateTime.now();
+                final dayOfWeek = today.weekday % 7;
+                final override = pengaturan!.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
+                if (override != null) {
+                  return override.isLibur == 1 ? '-' : override.jamMasuk.substring(0, 5);
+                }
+                final isWeekend = today.weekday == DateTime.saturday || today.weekday == DateTime.sunday;
+                return isWeekend ? '-' : pengaturan!.jamMasuk.substring(0, 5);
+              }(),
               textColor: textColor,
               subtextColor: subtextColor,
             ),
             _InfoRow(
               label: 'Istirahat',
-              value:
-                  '${pengaturan!.jamIstirahatMulai.substring(0, 5)} - ${pengaturan!.jamIstirahatSelesai.substring(0, 5)}',
+              value: () {
+                final today = DateTime.now();
+                final dayOfWeek = today.weekday % 7;
+                final override = pengaturan!.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
+                if (override != null) {
+                  if (override.isLibur == 1) return '-';
+                  return (override.jamIstirahatMulai != null && override.jamIstirahatSelesai != null &&
+                          override.jamIstirahatMulai != '00:00:00' && override.jamIstirahatSelesai != '00:00:00')
+                      ? '${override.jamIstirahatMulai!.substring(0, 5)} - ${override.jamIstirahatSelesai!.substring(0, 5)}'
+                      : '-';
+                }
+                final isWeekend = today.weekday == DateTime.saturday || today.weekday == DateTime.sunday;
+                if (isWeekend) return '-';
+                return '${pengaturan!.jamIstirahatMulai.substring(0, 5)} - ${pengaturan!.jamIstirahatSelesai.substring(0, 5)}';
+              }(),
               textColor: textColor,
               subtextColor: subtextColor,
             ),
             _InfoRow(
               label: 'Presensi Pulang',
-              value: pengaturan!.jamPulang.substring(0, 5),
+              value: () {
+                final today = DateTime.now();
+                final dayOfWeek = today.weekday % 7;
+                final override = pengaturan!.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
+                if (override != null) {
+                  return override.isLibur == 1 ? '-' : override.jamPulang.substring(0, 5);
+                }
+                final isWeekend = today.weekday == DateTime.saturday || today.weekday == DateTime.sunday;
+                return isWeekend ? '-' : pengaturan!.jamPulang.substring(0, 5);
+              }(),
               textColor: textColor,
               subtextColor: subtextColor,
               isLast: true,

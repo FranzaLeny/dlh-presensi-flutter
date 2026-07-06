@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/status.dart';
 import '../../../../data/models/presensi_log.dart';
+import '../../../../data/models/presensi_absen.dart';
 
 class PresensiActionButtons extends StatelessWidget {
   final PresensiLog? masukLog;
@@ -9,6 +10,9 @@ class PresensiActionButtons extends StatelessWidget {
   final PresensiLog? selesaiIstirahatLog;
   final PresensiLog? pulangLog;
   final List<PresensiLog> todayLogs;
+  final PresensiAbsen? approvedAbsence;
+  final bool isTodayLibur;
+  final String? liburNama;
   final bool loading;
   final Color cardBg;
   final Color textColor;
@@ -23,6 +27,9 @@ class PresensiActionButtons extends StatelessWidget {
     required this.selesaiIstirahatLog,
     required this.pulangLog,
     required this.todayLogs,
+    this.approvedAbsence,
+    this.isTodayLibur = false,
+    this.liburNama,
     required this.loading,
     required this.cardBg,
     required this.textColor,
@@ -33,6 +40,48 @@ class PresensiActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (approvedAbsence != null) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          children: [
+            Text(
+              approvedAbsence!.tipe == 'tugas'
+                  ? '💼'
+                  : approvedAbsence!.tipe == 'sakit'
+                      ? '🤒'
+                      : '🌴',
+              style: const TextStyle(fontSize: 40),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              approvedAbsence!.tipe == 'tugas'
+                  ? 'Sedang Tugas Dinas'
+                  : approvedAbsence!.tipe == 'sakit'
+                      ? 'Sedang Sakit'
+                      : 'Sedang Cuti',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Pengajuan ${approvedAbsence!.tipe} Anda hari ini telah disetujui. Anda tidak perlu melakukan presensi.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: subtextColor),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (masukLog != null &&
         mulaiIstirahatLog != null &&
         selesaiIstirahatLog != null &&
@@ -112,9 +161,40 @@ class PresensiActionButtons extends StatelessWidget {
       );
     }
 
+    Widget? holidayBanner;
+    if (isTodayLibur && liburNama != null) {
+      holidayBanner = Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.amber.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.info_outline_rounded, color: Colors.amber, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Hari Libur: $liburNama. Anda tetap diperbolehkan melakukan presensi.',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: textColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
-        ?actionButton,
+        holidayBanner ?? const SizedBox.shrink(),
+        actionButton ?? const SizedBox.shrink(),
         if (todayLogs.any((l) => !l.isSynced || l.status == Status.rejected))
           _buildRedoButton(),
       ],
