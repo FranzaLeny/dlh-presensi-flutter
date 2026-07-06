@@ -5,11 +5,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/utils/date_utils.dart' as date_utils;
 import '../../../data/local/presensi_dao.dart';
 import '../../../data/models/presensi_log.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/sync_engine.dart';
+import 'widgets/riwayat_log_item.dart';
 
 class RiwayatScreen extends StatefulWidget {
   const RiwayatScreen({super.key});
@@ -157,153 +157,17 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
                       itemCount: _logs.length,
                       itemBuilder: (context, index) {
                         final log = _logs[index];
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: cardBg,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: _getTypeColor(log.tipe)
-                                      .withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    _getTypeIcon(log.tipe),
-                                    color: _getTypeColor(log.tipe),
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(log.tipe.displayLabel,
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            color: textColor)),
-                                    Text(log.tanggal,
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: subtextColor)),
-                                  ],
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    date_utils.formatTime(
-                                        DateTime.parse(log.waktu)),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: textColor,
-                                      fontFeatures: const [
-                                        FontFeature.tabularFigures()
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                       if (!log.isSynced)
-                                         GestureDetector(
-                                           onTap: _syncingLogIds.contains(log.id)
-                                               ? null
-                                               : () => _handleSingleSync(log.id),
-                                           child: Container(
-                                             margin: const EdgeInsets.only(right: 6),
-                                             padding: const EdgeInsets.all(2),
-                                             decoration: BoxDecoration(
-                                               color: AppColors.warning.withValues(alpha: 0.15),
-                                               shape: BoxShape.circle,
-                                               border: Border.all(
-                                                 color: AppColors.warning,
-                                                 width: 1,
-                                               ),
-                                             ),
-                                             child: _syncingLogIds.contains(log.id)
-                                                 ? const SizedBox(
-                                                     width: 12,
-                                                     height: 12,
-                                                     child: CircularProgressIndicator(
-                                                       strokeWidth: 1.5,
-                                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                                         AppColors.warning,
-                                                       ),
-                                                     ),
-                                                   )
-                                                 : const Icon(Icons.sync_rounded, size: 12, color: AppColors.warning),
-                                           ),
-                                         ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: log.isSynced
-                                              ? AppColors.success
-                                                  .withValues(alpha: 0.15)
-                                              : AppColors.warning
-                                                  .withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          log.isSynced ? 'Synced' : 'Pending',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                            color: log.isSynced
-                                                ? AppColors.success
-                                                : AppColors.warning,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                        return RiwayatLogItem(
+                          log: log,
+                          cardBg: cardBg,
+                          textColor: textColor,
+                          subtextColor: subtextColor,
+                          isSyncing: _syncingLogIds.contains(log.id),
+                          onSingleSync: () => _handleSingleSync(log.id),
                         );
                       },
                     ),
             ),
     );
-  }
-
-  Color _getTypeColor(TipePresensi tipe) {
-    switch (tipe) {
-      case TipePresensi.masuk:
-        return AppColors.absenMasuk;
-      case TipePresensi.mulaiIstirahat:
-        return AppColors.absenIstirahatMulai;
-      case TipePresensi.selesaiIstirahat:
-        return AppColors.absenIstirahatSelesai;
-      case TipePresensi.pulang:
-        return AppColors.absenPulang;
-    }
-  }
-
-  IconData _getTypeIcon(TipePresensi tipe) {
-    switch (tipe) {
-      case TipePresensi.masuk:
-        return Icons.login_rounded;
-      case TipePresensi.mulaiIstirahat:
-        return Icons.coffee_rounded;
-      case TipePresensi.selesaiIstirahat:
-        return Icons.directions_run_rounded;
-      case TipePresensi.pulang:
-        return Icons.logout_rounded;
-    }
   }
 }

@@ -14,6 +14,10 @@ import '../../../data/local/hari_libur_dao.dart';
 import '../../../data/local/absen_dao.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/sync_engine.dart';
+import 'widgets/profil_action_buttons.dart';
+import 'widgets/profil_header_card.dart';
+import 'widgets/profil_info_section.dart';
+import 'widgets/profil_pengaturan_card.dart';
 
 class ProfilScreen extends StatefulWidget {
   const ProfilScreen({super.key});
@@ -170,248 +174,35 @@ class _ProfilScreenState extends State<ProfilScreen> {
           child: Column(
             children: [
               // ── Avatar & Name ─────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white.withValues(alpha: 0.2),
-                      child: Text(
-                        _pegawai?.nama.isNotEmpty == true
-                            ? _pegawai!.nama[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      _pegawai?.nama ?? '-',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _pegawai?.jabatan ?? '-',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ProfilHeaderCard(pegawai: _pegawai),
               const SizedBox(height: 16),
 
               // ── Detail Info ───────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: cardBg,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '📋 Data Kepegawaian',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _InfoRow(
-                        label: 'NIP',
-                        value: _pegawai?.nip ?? '-',
-                        textColor: textColor,
-                        subtextColor: subtextColor),
-                    _InfoRow(
-                        label: 'Jenis Pegawai',
-                        value: _pegawai?.jenisPegawai ?? '-',
-                        textColor: textColor,
-                        subtextColor: subtextColor),
-                    _InfoRow(
-                        label: 'Instansi',
-                        value: _pegawai?.instansi ?? '-',
-                        textColor: textColor,
-                        subtextColor: subtextColor),
-                    _InfoRow(
-                        label: 'SKPD',
-                        value: _pegawai?.namaSkpd ?? '-',
-                        textColor: textColor,
-                        subtextColor: subtextColor),
-                    _InfoRow(
-                        label: 'Jenis Kelamin',
-                        value: _pegawai?.jenisKelamin == 'L'
-                            ? 'Laki-laki'
-                            : 'Perempuan',
-                        textColor: textColor,
-                        subtextColor: subtextColor,
-                        isLast: true),
-                  ],
-                ),
+              ProfilInfoSection(
+                pegawai: _pegawai,
+                cardBg: cardBg,
+                textColor: textColor,
+                subtextColor: subtextColor,
+                borderColor: borderColor,
               ),
               const SizedBox(height: 16),
 
               // ── Detail Pengaturan Presensi ────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: cardBg,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '🏢 Detail Pengaturan Presensi',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (_pengaturan != null) ...[
-                      _InfoRow(
-                        label: 'Kantor',
-                        value: _pengaturan!.namaKantor ?? 'Instansi DLH',
-                        textColor: textColor,
-                        subtextColor: subtextColor,
-                      ),
-                      _InfoRow(
-                        label: 'Koordinat Titik',
-                        value:
-                            '${_pengaturan!.latitude.toStringAsFixed(6)}, ${_pengaturan!.longitude.toStringAsFixed(6)}',
-                        textColor: textColor,
-                        subtextColor: subtextColor,
-                      ),
-                      _InfoRow(
-                        label: 'Jejari Geofence',
-                        value: '${_pengaturan!.radius} meter',
-                        textColor: textColor,
-                        subtextColor: subtextColor,
-                      ),
-                      _InfoRow(
-                        label: 'Presensi Masuk',
-                        value: _pengaturan!.jamMasuk.substring(0, 5),
-                        textColor: textColor,
-                        subtextColor: subtextColor,
-                      ),
-                      _InfoRow(
-                        label: 'Istirahat',
-                        value:
-                            '${_pengaturan!.jamIstirahatMulai.substring(0, 5)} - ${_pengaturan!.jamIstirahatSelesai.substring(0, 5)}',
-                        textColor: textColor,
-                        subtextColor: subtextColor,
-                      ),
-                      _InfoRow(
-                        label: 'Presensi Pulang',
-                        value: _pengaturan!.jamPulang.substring(0, 5),
-                        textColor: textColor,
-                        subtextColor: subtextColor,
-                        isLast: true,
-                      ),
-                    ] else
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            'Pengaturan lokal belum disinkronkan.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 14, color: subtextColor),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+              ProfilPengaturanCard(
+                pengaturan: _pengaturan,
+                cardBg: cardBg,
+                textColor: textColor,
+                subtextColor: subtextColor,
+                borderColor: borderColor,
               ),
               const SizedBox(height: 24),
 
-              // ── Sync Button ───────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _isSyncing ? null : _handleSync,
-                  icon: _isSyncing
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.sync_rounded),
-                  label: Text(
-                    _isSyncing ? 'Menyinkronkan...' : 'Sinkronisasi Data Offline',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // ── Logout Button ─────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _loggingOut ? null : _handleLogout,
-                  icon: _loggingOut
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.error,
-                          ),
-                        )
-                      : const Icon(Icons.logout),
-                  label: const Text('Keluar / Logout'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.error,
-                    side: BorderSide(
-                      color: AppColors.error.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
+              // ── Sync & Logout Buttons ─────────────────────────
+              ProfilActionButtons(
+                isSyncing: _isSyncing,
+                loggingOut: _loggingOut,
+                onSync: _handleSync,
+                onLogout: _handleLogout,
               ),
               const SizedBox(height: 32),
 
@@ -425,55 +216,6 @@ class _ProfilScreenState extends State<ProfilScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color textColor;
-  final Color subtextColor;
-  final bool isLast;
-
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    required this.textColor,
-    required this.subtextColor,
-    this.isLast = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: isLast
-          ? null
-          : BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey.withValues(alpha: 0.15),
-                ),
-              ),
-            ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(label,
-                style: TextStyle(fontSize: 13, color: subtextColor)),
-          ),
-          Expanded(
-            child: Text(value,
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: textColor)),
-          ),
-        ],
       ),
     );
   }
