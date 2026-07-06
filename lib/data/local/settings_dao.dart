@@ -39,6 +39,13 @@ class SettingsDao {
     return PengaturanPresensi.fromRow(rows.first);
   }
 
+  /// Ambil semua pengaturan presensi yang tersedia
+  static Future<List<PengaturanPresensi>> getAll() async {
+    final db = await getDatabase();
+    final rows = await db.query('pengaturan_presensi');
+    return rows.map(PengaturanPresensi.fromRow).toList();
+  }
+
   /// Hapus semua pengaturan
   static Future<void> clear() async {
     final db = await getDatabase();

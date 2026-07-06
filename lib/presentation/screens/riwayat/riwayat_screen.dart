@@ -37,10 +37,11 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
     try {
       final pegawai = await AuthService.getPegawai();
       final now = DateTime.now();
-      final logs = await PresensiDao.getByMonth(
+      final today =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final logs = await PresensiDao.getTodayAndUnsynced(
         pegawai?.id ?? '',
-        now.year,
-        now.month,
+        today,
       );
       if (mounted) setState(() => _logs = logs);
     } catch (_) {}

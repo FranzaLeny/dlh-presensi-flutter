@@ -186,6 +186,15 @@ class AuthService {
     }
   }
 
+  // ── Sync data pegawai dengan menyimpannya ke SecureStore ──────────────────
+  static Future<Pegawai?> syncPegawai() async {
+    final pegawai = await fetchMyPegawai();
+    if (pegawai != null) {
+      await _storage.write(key: _pegawaiKey, value: jsonEncode(pegawai.toJson()));
+    }
+    return pegawai;
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────
 
   static Future<String> _getDeviceId() async {

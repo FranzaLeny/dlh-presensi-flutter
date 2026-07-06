@@ -408,3 +408,33 @@ flutter build apk --debug
 - **JANGAN** mengubah nama class/fungsi public yang sudah ada.
 - Jika menemukan bug saat refactoring, **catat** tapi jangan perbaiki di PR ini.
 - Setiap tahap bisa di-commit terpisah untuk mempermudah review.
+
+
+A. Buatkan perencanaan untuk memisahakan tombol syncron data di pengaturan / profil screen 
+1. Syncron data pegawai di card data kepegawaian;
+2. Syncron data pengaturan di card pengaturan;
+3. Syncron hari libur;
+4. Syncron data absen;
+5. Dan satu tombol untuk syncron semuanya kecuali data pegawai.
+B. Pada halaman rekap 
+1. Bagian detail per hari tampilkan juga keterangan dari presensi, jenis absen;
+2. Tambahkan juga jamKerjaEfektif diambil dari perngaturan pada tanggal tersebut;
+3. Tambahakan juga jamKerja diambil berdasarkan log presensi masuk dan pulang (selesai istirahat jika ada),
+4. Jika sakit, tugas atau cuti dan hari kerja maka jamKerja sama dengan jamKerjaEfektif karena dianggap hadir.
+5. Jika libur jamKerjaEfektif adalah 0 sedangkan jamKerja bisa dihitung jika ada log presensi dan lengkap karena pegawai mungkin saja lembur.
+6. Tambahkan 1 card untuk simpan 
+  a. jumlah jam kerjaEfektif sesuai pengaturan (bisa beberapa pengaturan dalam 1 bulan dihitung berdasarkan tanggalMulai dan tanggalBerakhir);
+  b. Total jamKerja pegawai selama bulan tersebut;
+  c. Persetasi jamKerja: (Total jamKerja / Jumlah Jam KerjaEfektif) * 100%;
+  d. Total tugas, cuti, dan sakit
+7. Buat pembeda antara hadir, tidak lengkap, sakit, tugas, cuti, libur; dengan warna yang berbeda;
+8. Untuk hadir dibuat warna hijau, libur warna hitam, tidak lengkap warna merah, sakit warna kuning, tugas warna biru, cuti warna ungu
+
+
+
+
+Untuk syncron data pegawai: ambil dari pengaturan, lokasi, foto profile pegawai
+Untuk syncron data pengaturan: ambil dari pengaturan, lokasi, foto profile pegawai
+Untuk syncron data hari libur: ambil dari pengaturan, lokasi, foto profile pegawai
+Untuk syncron data absen: ambil dari pengaturan, lokasi, foto profile pegawai
+Untuk syncron data lainnya: ambil dari pengaturan, lokasi, foto profile pegawai

@@ -6,7 +6,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 const String _dbName = 'presensi.db';
-const int _dbVersion = 3;
+const int _dbVersion = 4;
 
 Database? _db;
 
@@ -46,7 +46,7 @@ Future<void> _onCreate(Database db, int version) async {
   await db.execute('''
     CREATE TABLE IF NOT EXISTS pengaturan_presensi (
       id TEXT PRIMARY KEY,
-      skpd_id TEXT NOT NULL UNIQUE,
+      skpd_id TEXT NOT NULL,
       nama_kantor TEXT,
       latitude REAL NOT NULL,
       longitude REAL NOT NULL,

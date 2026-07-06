@@ -61,6 +61,24 @@ class PresensiDao {
     return rows.map(PresensiLog.fromRow).toList();
   }
 
+  /// Ambil log hari ini + semua log yang belum di-sync (gabungan tanpa duplikat)
+  static Future<List<PresensiLog>> getTodayAndUnsynced(
+    String pegawaiId,
+    String tanggal,
+  ) async {
+    final db = await getDatabase();
+    final rows = await db.rawQuery(
+      '''
+      SELECT * FROM presensi_log
+      WHERE (pegawai_id = ? AND tanggal = ?)
+         OR is_synced = 0
+      ORDER BY tanggal DESC, waktu DESC
+      ''',
+      [pegawaiId, tanggal],
+    );
+    return rows.map(PresensiLog.fromRow).toList();
+  }
+
   /// Tandai log sebagai sudah di-sync
   static Future<void> markAsSynced(List<String> ids) async {
     if (ids.isEmpty) return;

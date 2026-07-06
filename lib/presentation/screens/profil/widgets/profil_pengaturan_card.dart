@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/pengaturan_presensi.dart';
 
 class ProfilPengaturanCard extends StatelessWidget {
@@ -7,6 +8,8 @@ class ProfilPengaturanCard extends StatelessWidget {
   final Color textColor;
   final Color subtextColor;
   final Color borderColor;
+  final VoidCallback? onSyncPengaturan;
+  final bool isSyncingPengaturan;
 
   const ProfilPengaturanCard({
     super.key,
@@ -15,6 +18,8 @@ class ProfilPengaturanCard extends StatelessWidget {
     required this.textColor,
     required this.subtextColor,
     required this.borderColor,
+    this.onSyncPengaturan,
+    this.isSyncingPengaturan = false,
   });
 
   @override
@@ -30,13 +35,38 @@ class ProfilPengaturanCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '🏢 Detail Pengaturan Presensi',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: textColor,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '🏢 Detail Pengaturan Presensi',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+              if (onSyncPengaturan != null)
+                IconButton(
+                  onPressed: isSyncingPengaturan ? null : onSyncPengaturan,
+                  icon: isSyncingPengaturan
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : const Icon(Icons.sync_rounded, size: 18),
+                  tooltip: 'Sinkronisasi Data Pengaturan',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  style: IconButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 12),
           if (pengaturan != null) ...[

@@ -30,7 +30,11 @@ class _ProfilScreenState extends State<ProfilScreen> {
   Pegawai? _pegawai;
   PengaturanPresensi? _pengaturan;
   bool _loading = true;
-  bool _isSyncing = false;
+  bool _isSyncingPegawai = false;
+  bool _isSyncingPengaturan = false;
+  bool _isSyncingHariLibur = false;
+  bool _isSyncingAbsen = false;
+  bool _isSyncingAllExceptPegawai = false;
   bool _loggingOut = false;
 
   @override
@@ -52,7 +56,70 @@ class _ProfilScreenState extends State<ProfilScreen> {
   }
 
   Future<void> _handleSync() async {
-    setState(() => _isSyncing = true);
+    try {
+      final skpdId = _pegawai?.skpdId;
+      await AuthService.syncPegawai();
+      await runFullSync(skpdId: skpdId);
+      final pegawai = await AuthService.getPegawai();
+      final pengaturan = await SettingsDao.getFirst();
+
+      if (mounted) {
+        setState(() {
+          _pegawai = pegawai;
+          _pengaturan = pengaturan;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Seluruh data berhasil disinkronkan.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal melakukan sinkronisasi data.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleSyncPegawai() async {
+    setState(() => _isSyncingPegawai = true);
+    try {
+      final updatedPegawai = await AuthService.syncPegawai();
+      if (mounted && updatedPegawai != null) {
+        setState(() {
+          _pegawai = updatedPegawai;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data pegawai berhasil disinkronkan.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal melakukan sinkronisasi data pegawai.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingPegawai = false);
+      }
+    }
+  }
+
+  Future<void> _handleSyncPengaturan() async {
+    setState(() => _isSyncingPengaturan = true);
     try {
       final skpdId = _pegawai?.skpdId;
       if (skpdId == null) {
@@ -63,16 +130,104 @@ class _ProfilScreenState extends State<ProfilScreen> {
         }
         return;
       }
-      await runFullSync(skpdId: skpdId);
+      await syncSettings(skpdId: skpdId);
       final pengaturan = await SettingsDao.getFirst();
-
       if (mounted) {
         setState(() {
           _pengaturan = pengaturan;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Data berhasil disinkronkan dari server.'),
+            content: Text('Data pengaturan berhasil disinkronkan.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal melakukan sinkronisasi data pengaturan.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingPengaturan = false);
+      }
+    }
+  }
+
+  Future<void> _handleSyncHariLibur() async {
+    setState(() => _isSyncingHariLibur = true);
+    try {
+      await syncHariLibur();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data hari libur berhasil disinkronkan.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal melakukan sinkronisasi hari libur.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingHariLibur = false);
+      }
+    }
+  }
+
+  Future<void> _handleSyncAbsen() async {
+    setState(() => _isSyncingAbsen = true);
+    try {
+      await syncAbsenPegawai();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data absen berhasil disinkronkan.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal melakukan sinkronisasi data absen.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingAbsen = false);
+      }
+    }
+  }
+
+  Future<void> _handleSyncAllExceptPegawai() async {
+    setState(() => _isSyncingAllExceptPegawai = true);
+    try {
+      final skpdId = _pegawai?.skpdId;
+      await runSyncExceptPegawai(skpdId: skpdId);
+      final pengaturan = await SettingsDao.getFirst();
+      if (mounted) {
+        setState(() {
+          _pengaturan = pengaturan;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Seluruh data (kecuali pegawai) berhasil disinkronkan.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -88,7 +243,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isSyncing = false);
+        setState(() => _isSyncingAllExceptPegawai = false);
       }
     }
   }
@@ -184,6 +339,8 @@ class _ProfilScreenState extends State<ProfilScreen> {
                 textColor: textColor,
                 subtextColor: subtextColor,
                 borderColor: borderColor,
+                onSyncPegawai: _handleSyncPegawai,
+                isSyncingPegawai: _isSyncingPegawai,
               ),
               const SizedBox(height: 16),
 
@@ -194,14 +351,20 @@ class _ProfilScreenState extends State<ProfilScreen> {
                 textColor: textColor,
                 subtextColor: subtextColor,
                 borderColor: borderColor,
+                onSyncPengaturan: _handleSyncPengaturan,
+                isSyncingPengaturan: _isSyncingPengaturan,
               ),
               const SizedBox(height: 24),
 
               // ── Sync & Logout Buttons ─────────────────────────
               ProfilActionButtons(
-                isSyncing: _isSyncing,
+                isSyncingHariLibur: _isSyncingHariLibur,
+                isSyncingAbsen: _isSyncingAbsen,
+                isSyncingAllExceptPegawai: _isSyncingAllExceptPegawai,
                 loggingOut: _loggingOut,
-                onSync: _handleSync,
+                onSyncHariLibur: _handleSyncHariLibur,
+                onSyncAbsen: _handleSyncAbsen,
+                onSyncAllExceptPegawai: _handleSyncAllExceptPegawai,
                 onLogout: _handleLogout,
               ),
               const SizedBox(height: 32),

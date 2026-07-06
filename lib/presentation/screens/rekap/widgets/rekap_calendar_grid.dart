@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/presensi_log.dart';
 
 class RekapCalendarGrid extends StatelessWidget {
@@ -7,6 +6,7 @@ class RekapCalendarGrid extends StatelessWidget {
   final int selectedMonth;
   final String? selectedDate;
   final Map<String, List<PresensiLog>> grouped;
+  final Map<String, ({String statusText, Color statusColor, double jamKerjaEfektif, double jamKerja})> dayStatuses;
   final Color textColor;
   final Color cardBg;
   final Function(String) onDateSelected;
@@ -17,6 +17,7 @@ class RekapCalendarGrid extends StatelessWidget {
     required this.selectedMonth,
     required this.selectedDate,
     required this.grouped,
+    required this.dayStatuses,
     required this.textColor,
     required this.cardBg,
     required this.onDateSelected,
@@ -27,6 +28,7 @@ class RekapCalendarGrid extends StatelessWidget {
     final firstDay = DateTime(selectedYear, selectedMonth, 1);
     final daysInMonth = DateTime(selectedYear, selectedMonth + 1, 0).day;
     final firstWeekday = firstDay.weekday; // 1 (Mon) to 7 (Sun)
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final daysOfWeek = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
@@ -63,22 +65,50 @@ class RekapCalendarGrid extends StatelessWidget {
       final hasData = grouped.containsKey(formattedDateStr);
       final isSelected = selectedDate == formattedDateStr;
 
+      final statusInfo = dayStatuses[formattedDateStr];
+
+      Color cellBgColor = Colors.transparent;
+      Color textStyleColor = textColor;
+      FontWeight cellFontWeight = FontWeight.normal;
+      
+      if (statusInfo != null) {
+        final stColor = statusInfo.statusColor;
+        if (isSelected) {
+          cellBgColor = stColor;
+          textStyleColor = stColor == Colors.amber ? Colors.black87 : Colors.white;
+          cellFontWeight = FontWeight.bold;
+        } else {
+          if (stColor == Colors.black) {
+            cellBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.06);
+            textStyleColor = isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.5);
+          } else {
+            cellBgColor = stColor.withValues(alpha: 0.15);
+            textStyleColor = stColor;
+            cellFontWeight = FontWeight.bold;
+          }
+        }
+      } else if (isSelected) {
+        cellBgColor = Theme.of(context).primaryColor;
+        textStyleColor = Colors.white;
+        cellFontWeight = FontWeight.bold;
+      }
+
       currentRow.add(
         Expanded(
           child: GestureDetector(
             onTap: () => onDateSelected(formattedDateStr),
             child: Container(
-              margin: const EdgeInsets.all(2),
+              margin: const EdgeInsets.all(3),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary
-                    : (hasData
-                        ? AppColors.primary.withValues(alpha: 0.1)
-                        : Colors.transparent),
+                color: cellBgColor,
                 borderRadius: BorderRadius.circular(8),
-                border: isSelected || hasData
+                border: isSelected
                     ? null
-                    : Border.all(color: cardBg.withValues(alpha: 0.5)),
+                    : Border.all(
+                        color: statusInfo != null
+                            ? Colors.transparent
+                            : cardBg.withValues(alpha: 0.3),
+                      ),
               ),
               child: AspectRatio(
                 aspectRatio: 1,
@@ -89,21 +119,18 @@ class RekapCalendarGrid extends StatelessWidget {
                       Text(
                         day.toString(),
                         style: TextStyle(
-                          color: isSelected ? Colors.white : textColor,
-                          fontWeight: isSelected || hasData
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                          color: textStyleColor,
+                          fontWeight: cellFontWeight,
+                          fontSize: 13,
                         ),
                       ),
-                      if (hasData)
+                      if (hasData && !isSelected)
                         Container(
                           margin: const EdgeInsets.only(top: 2),
                           width: 4,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.primary,
+                            color: textStyleColor,
                             shape: BoxShape.circle,
                           ),
                         )
@@ -130,7 +157,7 @@ class RekapCalendarGrid extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(16),

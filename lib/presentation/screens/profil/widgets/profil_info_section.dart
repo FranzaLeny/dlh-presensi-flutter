@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/pegawai.dart';
 
 class ProfilInfoSection extends StatelessWidget {
@@ -7,6 +8,8 @@ class ProfilInfoSection extends StatelessWidget {
   final Color textColor;
   final Color subtextColor;
   final Color borderColor;
+  final VoidCallback? onSyncPegawai;
+  final bool isSyncingPegawai;
 
   const ProfilInfoSection({
     super.key,
@@ -15,6 +18,8 @@ class ProfilInfoSection extends StatelessWidget {
     required this.textColor,
     required this.subtextColor,
     required this.borderColor,
+    this.onSyncPegawai,
+    this.isSyncingPegawai = false,
   });
 
   @override
@@ -30,13 +35,38 @@ class ProfilInfoSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '📋 Data Kepegawaian',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: textColor,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '📋 Data Kepegawaian',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+              if (onSyncPegawai != null)
+                IconButton(
+                  onPressed: isSyncingPegawai ? null : onSyncPegawai,
+                  icon: isSyncingPegawai
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : const Icon(Icons.sync_rounded, size: 18),
+                  tooltip: 'Sinkronisasi Data Pegawai',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  style: IconButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
           _InfoRow(
