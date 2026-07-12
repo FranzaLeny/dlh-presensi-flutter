@@ -5,15 +5,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:device_info_plus/device_info_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import 'package:path_provider/path_provider.dart';
-import 'package:dio/dio.dart';
 
 import '../core/config/env.dart';
 import '../core/utils/crypto_utils.dart';
+import '../core/utils/device_utils.dart';
 import '../data/models/pegawai.dart';
 import '../data/remote/api_client.dart';
 import 'storage_service.dart';
@@ -45,6 +44,8 @@ class AuthService {
       await _storage.write(key: _tokenKey, value: token as String);
     }
 
+    _cachedHasSession = null; // Invalidate session cache upon new login
+
     // Ambil data pegawai dari server dan sinkronisasi (download foto)
     final pegawai = await syncPegawai();
     if (pegawai == null) {
@@ -57,6 +58,7 @@ class AuthService {
     } catch (e) {
       // Jika registerDeviceKey gagal (misal karena gagal generate keypair)
       // maka batalkan proses login dengan menghapus session yang baru saja dibuat
+      invalidateAuthCache();
       await logout();
       rethrow;
     }
@@ -66,8 +68,8 @@ class AuthService {
 
   // ── Step 2: Register device API key ─────────────────────────────────────
   static Future<void> registerDeviceKey() async {
-    final deviceId = await _getDeviceId();
-    final deviceModel = await _getDeviceModel();
+    final deviceId = await DeviceUtils.getDeviceId();
+    final deviceModel = await DeviceUtils.getDeviceModel();
     final appVersion = AppConfig.appVersion;
 
     // Cek apakah keypair sudah ada, jika belum generate baru
@@ -118,7 +120,9 @@ class AuthService {
         await _storage.write(key: _apiKeyIdKey, value: data['id'] as String);
       }
     } catch (err) {
-      throw Exception('Gagal mendaftarkan perangkat. Silakan hubungi admin atau coba lagi.');
+      throw Exception(
+        'Gagal mendaftarkan perangkat. Silakan hubungi admin atau coba lagi.',
+      );
     }
   }
 
@@ -128,19 +132,22 @@ class AuthService {
     required String newPassword,
     bool revokeOtherSessions = true,
   }) async {
-    await apiClient.post('/auth/change-password', data: {
-      'currentPassword': currentPassword,
-      'newPassword': newPassword,
-      'revokeOtherSessions': revokeOtherSessions,
-    });
+    await apiClient.post(
+      '/auth/change-password',
+      data: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'revokeOtherSessions': revokeOtherSessions,
+      },
+    );
   }
 
   // ── Auth: Ubah Email (Kirim OTP) ──────────────────────────────────────
   static Future<void> sendChangeEmailOtp(String newEmail) async {
-    await apiClient.post('/auth/email-otp/send-verification-otp', data: {
-      'email': newEmail,
-      'type': 'change-email',
-    });
+    await apiClient.post(
+      '/auth/email-otp/send-verification-otp',
+      data: {'email': newEmail, 'type': 'change-email'},
+    );
   }
 
   // ── Auth: Ubah Email (Verifikasi OTP) ─────────────────────────────────
@@ -148,21 +155,21 @@ class AuthService {
     required String newEmail,
     required String otp,
   }) async {
-    await apiClient.post('/auth/email-otp/verify-email', data: {
-      'email': newEmail,
-      'otp': otp,
-    });
+    await apiClient.post(
+      '/auth/email-otp/verify-email',
+      data: {'email': newEmail, 'otp': otp},
+    );
   }
 
   // ── Auth: Lupa Password (Kirim OTP) ───────────────────────────────────
   static Future<void> sendForgetPasswordOtp(String email) async {
-    final dio = Dio(BaseOptions(
-      baseUrl: AppConfig.apiUrl,
-      headers: {'Content-Type': 'application/json'},
-    ));
-    await dio.post('/auth/forget-password', data: {
-      'email': email,
-    });
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: AppConfig.apiUrl,
+        headers: {'Content-Type': 'application/json'},
+      ),
+    );
+    await dio.post('/auth/forget-password', data: {'email': email});
   }
 
   // ── Auth: Reset Password ──────────────────────────────────────────────
@@ -170,14 +177,16 @@ class AuthService {
     required String newPassword,
     required String otp,
   }) async {
-    final dio = Dio(BaseOptions(
-      baseUrl: AppConfig.apiUrl,
-      headers: {'Content-Type': 'application/json'},
-    ));
-    await dio.post('/auth/reset-password', data: {
-      'newPassword': newPassword,
-      'otp': otp,
-    });
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: AppConfig.apiUrl,
+        headers: {'Content-Type': 'application/json'},
+      ),
+    );
+    await dio.post(
+      '/auth/reset-password',
+      data: {'newPassword': newPassword, 'otp': otp},
+    );
   }
 
   // ── Ambil API key untuk dikirim di header request ───────────────────────
@@ -201,17 +210,22 @@ class AuthService {
     }
   }
 
+  static bool? _cachedHasSession;
+
   // ── Cek apakah session valid ───────────────────────────────────────────
   static Future<bool> hasValidSession() async {
+    if (_cachedHasSession != null) return _cachedHasSession!;
     final pegawai = await _storage.read(key: _pegawaiKey);
     final apiKey = await _storage.read(key: _apiKeyKey);
     final apiKeyId = await _storage.read(key: _apiKeyIdKey);
     final privateKey = await _storage.read(key: 'device_private_key');
 
-    return pegawai != null &&
+    _cachedHasSession =
+        pegawai != null &&
         apiKey != null &&
         apiKeyId != null &&
         privateKey != null;
+    return _cachedHasSession!;
   }
 
   // ── Logout ─────────────────────────────────────────────────────────────
@@ -225,6 +239,8 @@ class AuthService {
     } catch (_) {}
 
     // Bersihkan semua data lokal
+    _cachedHasSession = false;
+    invalidateAuthCache();
     await Future.wait([
       _storage.delete(key: _tokenKey),
       _storage.delete(key: _pegawaiKey),
@@ -240,7 +256,9 @@ class AuthService {
     try {
       final response = await apiClient.get('/auth/me/pegawai');
       final Map<String, dynamic> body = response.data;
-      final payload = body.containsKey('data') ? body['data'] as Map<String, dynamic> : body;
+      final payload = body.containsKey('data')
+          ? body['data'] as Map<String, dynamic>
+          : body;
       return Pegawai.fromJson(payload);
     } catch (e) {
       debugPrint('Error fetchMyPegawai: $e');
@@ -256,35 +274,35 @@ class AuthService {
     if (newPegawai != null) {
       String? localFotoPath = oldPegawai?.localFotoPath;
 
-      // Cek apakah foto profil berbeda (key berbeda) ATAU data profil baru saja di-update (bisa jadi fotonya yang di-update admin)
+      // Cek apakah foto profil berbeda (key berbeda)
       bool isImageChanged = newPegawai.image != oldPegawai?.image;
-      bool isProfileUpdated = newPegawai.updatedAt != oldPegawai?.updatedAt;
       bool isLocalFileMissing = true;
-      
+
       if (oldPegawai?.localFotoPath != null) {
         isLocalFileMissing = !(await File(oldPegawai!.localFotoPath!).exists());
       }
 
-      if (newPegawai.image != null && (isImageChanged || isProfileUpdated || isLocalFileMissing)) {
+      if (newPegawai.image != null && (isImageChanged || isLocalFileMissing)) {
         try {
           final String key = newPegawai.image!;
           final publicUrl = await StorageService.getPreviewUrl(
             entity: 'profile',
             key: key,
           );
-          
+
           String downloadUrl = publicUrl;
           if (!publicUrl.startsWith('http')) {
             downloadUrl = AppConfig.apiUrl + publicUrl;
           }
-          
+
           final dir = await getApplicationDocumentsDirectory();
-          final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final fileName =
+              'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
           final savedPath = '${dir.path}/$fileName';
-          
+
           await Dio().download(downloadUrl, savedPath);
           localFotoPath = savedPath;
-          
+
           // Hapus foto lama jika ada
           if (oldPegawai?.localFotoPath != null) {
             final oldFile = File(oldPegawai!.localFotoPath!);
@@ -298,64 +316,32 @@ class AuthService {
       }
 
       // Pertahankan localFotoPath (jika didownload atau tidak berubah)
-      newPegawai = Pegawai(
-        id: newPegawai.id,
-        instansi: newPegawai.instansi,
-        jenisPegawai: newPegawai.jenisPegawai,
-        jenisKelamin: newPegawai.jenisKelamin,
-        nama: newPegawai.nama,
-        namaTanpaGelar: newPegawai.namaTanpaGelar,
-        nip: newPegawai.nip,
-        gelarBelakang: newPegawai.gelarBelakang,
-        gelarDepan: newPegawai.gelarDepan,
-        nik: newPegawai.nik,
-        alamat: newPegawai.alamat,
-        jabatan: newPegawai.jabatan,
-        kodePangkatGolongan: newPegawai.kodePangkatGolongan,
-        eselon: newPegawai.eselon,
-        isAsn: newPegawai.isAsn,
-        tempatLahir: newPegawai.tempatLahir,
-        tanggalLahir: newPegawai.tanggalLahir,
-        tanggalAsn: newPegawai.tanggalAsn,
-        skpdId: newPegawai.skpdId,
-        namaSkpd: newPegawai.namaSkpd,
-        userId: newPegawai.userId,
-        username: newPegawai.username,
-        image: newPegawai.image,
-        localFotoPath: localFotoPath,
-        status: newPegawai.status,
-        isTtd: newPegawai.isTtd,
-        createdAt: newPegawai.createdAt,
-        updatedAt: newPegawai.updatedAt,
-        createdBy: newPegawai.createdBy,
-        updatedBy: newPegawai.updatedBy,
-        pangkatGolongan: newPegawai.pangkatGolongan,
-        skpd: newPegawai.skpd,
-      );
+      newPegawai = newPegawai.copyWith(localFotoPath: localFotoPath);
 
-      await _storage.write(key: _pegawaiKey, value: jsonEncode(newPegawai.toJson()));
+      await _storage.write(
+        key: _pegawaiKey,
+        value: jsonEncode(newPegawai.toJson()),
+      );
     }
     return newPegawai;
   }
 
   // ── Auth: Ubah Foto Profil (Update Session) ─────────────────────────
   static Future<void> updateProfilePhoto(String key) async {
-    await apiClient.post('/auth/update-user', data: {
-      'image': key,
-    });
+    await apiClient.post('/auth/update-user', data: {'image': key});
   }
 
   // ── Manual Update Local Foto Path (untuk bypass download) ─────────────
   static Future<void> setLocalProfilePhoto(String filePath) async {
     final oldPegawai = await getPegawai();
     if (oldPegawai == null) return;
-    
+
     // Kita pindahkan/salin foto yang baru dipilih ke path lokal yang unik
     // agar Image.file/FileImage merefresh cache-nya karena nama filenya baru.
     final dir = await getApplicationDocumentsDirectory();
     final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final savedPath = '${dir.path}/$fileName';
-    
+
     await File(filePath).copy(savedPath);
 
     // Hapus foto lama jika ada
@@ -366,71 +352,11 @@ class AuthService {
       }
     }
 
-    final newPegawai = Pegawai(
-      id: oldPegawai.id,
-      instansi: oldPegawai.instansi,
-      jenisPegawai: oldPegawai.jenisPegawai,
-      jenisKelamin: oldPegawai.jenisKelamin,
-      nama: oldPegawai.nama,
-      namaTanpaGelar: oldPegawai.namaTanpaGelar,
-      nip: oldPegawai.nip,
-      gelarBelakang: oldPegawai.gelarBelakang,
-      gelarDepan: oldPegawai.gelarDepan,
-      nik: oldPegawai.nik,
-      alamat: oldPegawai.alamat,
-      jabatan: oldPegawai.jabatan,
-      kodePangkatGolongan: oldPegawai.kodePangkatGolongan,
-      eselon: oldPegawai.eselon,
-      isAsn: oldPegawai.isAsn,
-      tempatLahir: oldPegawai.tempatLahir,
-      tanggalLahir: oldPegawai.tanggalLahir,
-      tanggalAsn: oldPegawai.tanggalAsn,
-      skpdId: oldPegawai.skpdId,
-      namaSkpd: oldPegawai.namaSkpd,
-      userId: oldPegawai.userId,
-      username: oldPegawai.username,
-      image: oldPegawai.image,
-      localFotoPath: savedPath,
-      status: oldPegawai.status,
-      isTtd: oldPegawai.isTtd,
-      createdAt: oldPegawai.createdAt,
-      updatedAt: oldPegawai.updatedAt,
-      createdBy: oldPegawai.createdBy,
-      updatedBy: oldPegawai.updatedBy,
-      pangkatGolongan: oldPegawai.pangkatGolongan,
-      skpd: oldPegawai.skpd,
+    final newPegawai = oldPegawai.copyWith(localFotoPath: savedPath);
+
+    await _storage.write(
+      key: _pegawaiKey,
+      value: jsonEncode(newPegawai.toJson()),
     );
-
-    await _storage.write(key: _pegawaiKey, value: jsonEncode(newPegawai.toJson()));
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────────────
-
-  static Future<String> _getDeviceId() async {
-    final deviceInfo = DeviceInfoPlugin();
-    try {
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        return androidInfo.id;
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        return iosInfo.identifierForVendor ?? 'unknown-ios';
-      }
-    } catch (_) {}
-    return 'unknown-device';
-  }
-
-  static Future<String> _getDeviceModel() async {
-    final deviceInfo = DeviceInfoPlugin();
-    try {
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        return '${androidInfo.brand} ${androidInfo.model}';
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        return iosInfo.utsname.machine;
-      }
-    } catch (_) {}
-    return 'unknown';
   }
 }

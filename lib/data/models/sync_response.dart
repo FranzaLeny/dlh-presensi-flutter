@@ -49,52 +49,7 @@ class SyncedItem {
   }
 }
 
-/// Response presigned URL dari backend
-class PresignedUrlResponse {
-  final String uploadUrl;
-  final String publicUrl;
-  final String? fileName;
 
-  const PresignedUrlResponse({
-    required this.uploadUrl,
-    required this.publicUrl,
-    this.fileName,
-  });
-
-  factory PresignedUrlResponse.fromJson(Map<String, dynamic> json) {
-    return PresignedUrlResponse(
-      uploadUrl: json['uploadUrl'] as String,
-      publicUrl: json['publicUrl'] as String,
-      fileName: json['fileName'] as String?,
-    );
-  }
-}
-
-/// Koordinat GPS
-class Coordinates {
-  final double latitude;
-  final double longitude;
-  final double? accuracy;
-
-  const Coordinates({
-    required this.latitude,
-    required this.longitude,
-    this.accuracy,
-  });
-}
-
-/// Hasil validasi geofence
-class GeofenceResult {
-  final bool isInRadius;
-  final int distance; // jarak dalam meter
-  final Coordinates coordinates;
-
-  const GeofenceResult({
-    required this.isInRadius,
-    required this.distance,
-    required this.coordinates,
-  });
-}
 
 /// Status sinkronisasi
 class SyncStatus {

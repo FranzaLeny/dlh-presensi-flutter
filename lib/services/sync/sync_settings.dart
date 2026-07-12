@@ -1,3 +1,4 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/local/settings_dao.dart';
 import '../../data/models/pengaturan_presensi.dart';
@@ -8,11 +9,14 @@ import '../time_service.dart';
 /// Sinkronisasi pengaturan presensi dari server ke SQLite lokal
 Future<void> syncSettings({String? skpdId}) async {
   try {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.contains(ConnectivityResult.none)) return;
+
     var resolvedSkpdId = skpdId;
 
     // Jika skpdId tidak ditentukan, coba ambil dari data pegawai
     if (resolvedSkpdId == null) {
-      final pegawai = await AuthService.fetchMyPegawai();
+      final pegawai = await AuthService.getPegawai();
       resolvedSkpdId = pegawai?.skpdId;
     }
 

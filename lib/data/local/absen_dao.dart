@@ -65,13 +65,43 @@ class AbsenDao {
     final monthStr = month.toString().padLeft(2, '0');
     final pattern = '$year-$monthStr%';
 
-    await db.delete(
-      'presensi_absen',
-      where: 'tanggal LIKE ?',
-      whereArgs: [pattern],
-    );
+    await db.transaction((txn) async {
+      await txn.delete(
+        'presensi_absen',
+        where: 'tanggal LIKE ?',
+        whereArgs: [pattern],
+      );
 
-    await upsertAll(items);
+      if (items.isEmpty) return;
+      final batch = txn.batch();
+      for (final item in items) {
+        batch.insert(
+          'presensi_absen',
+          item.toRow(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
+  /// Sinkronisasi dengan menghapus semua lalu menimpa (atomic)
+  static Future<void> replaceBulk(List<PresensiAbsen> items) async {
+    final db = await getDatabase();
+    await db.transaction((txn) async {
+      await txn.delete('presensi_absen');
+      
+      if (items.isEmpty) return;
+      final batch = txn.batch();
+      for (final item in items) {
+        batch.insert(
+          'presensi_absen',
+          item.toRow(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
   }
 
   /// Hapus semua data absen

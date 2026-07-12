@@ -124,7 +124,7 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
   void _startAutoRefresh() {
     refreshStatus();
     _refreshTimer = Timer.periodic(
-      const Duration(seconds: 5),
+      const Duration(seconds: 30),
       (_) => refreshStatus(),
     );
   }

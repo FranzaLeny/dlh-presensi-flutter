@@ -61,6 +61,31 @@ class PresensiDao {
     return rows.map(PresensiLog.fromRow).toList();
   }
 
+  /// Ambil log berdasarkan ID
+  static Future<PresensiLog?> getById(String id) async {
+    final db = await getDatabase();
+    final rows = await db.query(
+      'presensi_log',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : PresensiLog.fromRow(rows.first);
+  }
+
+  /// Ambil log berdasarkan list ID
+  static Future<List<PresensiLog>> getByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final db = await getDatabase();
+    final placeholders = ids.map((_) => '?').join(', ');
+    final rows = await db.query(
+      'presensi_log',
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
+    return rows.map(PresensiLog.fromRow).toList();
+  }
+
   /// Ambil log hari ini + semua log yang belum di-sync (gabungan tanpa duplikat)
   static Future<List<PresensiLog>> getTodayAndUnsynced(
     String pegawaiId,
@@ -160,15 +185,17 @@ class PresensiDao {
   static Future<void> upsertHistory(List<PresensiLog> logs) async {
     if (logs.isEmpty) return;
     final db = await getDatabase();
+    final batch = db.batch();
     for (final log in logs) {
       final row = log.toRow();
       row['is_synced'] = 1;
-      await db.insert(
+      batch.insert(
         'presensi_log',
         row,
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     }
+    await batch.commit(noResult: true);
   }
 
   /// Menghapus riwayat lokal dan memasukkan data rekap baru (Pull Sync)
@@ -182,24 +209,26 @@ class PresensiDao {
     final monthStr = month.toString().padLeft(2, '0');
     final pattern = '$year-$monthStr%';
 
-    // Hapus SEMUA log yang SUDAH SYNC di bulan ini
-    // Log yang belum di-sync (is_synced = 0) biarkan saja agar tidak hilang
-    await db.delete(
-      'presensi_log',
-      where: 'pegawai_id = ? AND tanggal LIKE ? AND is_synced = ?',
-      whereArgs: [pegawaiId, pattern, 1],
-    );
-
-    if (logs.isEmpty) return;
-    for (final log in logs) {
-      final row = log.toRow();
-      row['is_synced'] = 1; // Data dari server pasti valid (is_synced = 1)
-      await db.insert(
+    await db.transaction((txn) async {
+      // Hapus SEMUA log yang SUDAH SYNC di bulan ini
+      // Log yang belum di-sync (is_synced = 0) biarkan saja agar tidak hilang
+      await txn.delete(
         'presensi_log',
-        row,
-        conflictAlgorithm: ConflictAlgorithm.replace, // Overwrite pending log jika ID sama
+        where: 'pegawai_id = ? AND tanggal LIKE ? AND is_synced = ?',
+        whereArgs: [pegawaiId, pattern, 1],
       );
-    }
+
+      if (logs.isEmpty) return;
+      for (final log in logs) {
+        final row = log.toRow();
+        row['is_synced'] = 1; // Data dari server pasti valid (is_synced = 1)
+        await txn.insert(
+          'presensi_log',
+          row,
+          conflictAlgorithm: ConflictAlgorithm.replace, // Overwrite pending log jika ID sama
+        );
+      }
+    });
   }
 
   /// Hitung jumlah log yang belum di-sync

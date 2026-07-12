@@ -16,6 +16,7 @@ int _sessionStartPerfTime = _appStopwatch.elapsedMilliseconds;
 
 int? _lastSyncServerTime;
 int? _lastSyncPerfTime;
+int? _cachedLastKnownTime;
 
 class TimeService {
   TimeService._();
@@ -99,10 +100,9 @@ class TimeService {
         final estimatedMs = nowDevice + drift;
 
         // Cegah waktu dimundurkan secara offline
-        final lastKnownStr = await _storage.read(key: 'last_known_time');
-        if (lastKnownStr != null) {
-          final lastKnown = int.parse(lastKnownStr);
-          if (estimatedMs < lastKnown - 5000) {
+        _cachedLastKnownTime ??= int.tryParse(await _storage.read(key: 'last_known_time') ?? '');
+        if (_cachedLastKnownTime != null) {
+          if (estimatedMs < _cachedLastKnownTime! - 5000) {
             throw Exception(
                 'Manipulasi waktu terdeteksi! Waktu perangkat Anda dimundurkan.');
           }
@@ -123,19 +123,17 @@ class TimeService {
 
   /// Menyimpan waktu terakhir yang diketahui secara persistent
   static Future<void> _updateLastKnownTime(int currentTimeMs) async {
-    try {
-      final lastKnownStr = await _storage.read(key: 'last_known_time');
-      if (lastKnownStr != null) {
-        final lastKnown = int.parse(lastKnownStr);
-        if (currentTimeMs > lastKnown) {
-          await _storage.write(
-              key: 'last_known_time', value: currentTimeMs.toString());
-        }
-      } else {
-        await _storage.write(
-            key: 'last_known_time', value: currentTimeMs.toString());
-      }
-    } catch (_) {}
+    if (_cachedLastKnownTime != null && currentTimeMs <= _cachedLastKnownTime!) return;
+    
+    // Hanya simpan ke disk jika selisih > 1 menit untuk menghemat resource
+    if (_cachedLastKnownTime == null || currentTimeMs - _cachedLastKnownTime! > 60000) {
+      _cachedLastKnownTime = currentTimeMs;
+      try {
+        await _storage.write(key: 'last_known_time', value: currentTimeMs.toString());
+      } catch (_) {}
+    } else {
+      _cachedLastKnownTime = currentTimeMs;
+    }
   }
 
   /// Mengonversi Date ke format tanggal lokal UTC+8 (YYYY-MM-DD)

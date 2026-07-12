@@ -10,7 +10,7 @@ String uuidv7() {
   final now = DateTime.now().millisecondsSinceEpoch;
   final timestampHex = now.toRadixString(16).padLeft(12, '0');
 
-  final random = Random();
+  final random = Random.secure();
 
   // 4 bits version (7) + 12 bits random
   final randA = random.nextInt(0x1000);

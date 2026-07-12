@@ -9,6 +9,15 @@ import '../../core/config/env.dart';
 
 const _storage = FlutterSecureStorage();
 
+String? _cachedApiKey;
+String? _cachedToken;
+
+/// Menghapus cache otentikasi di memori (panggil saat logout)
+void invalidateAuthCache() {
+  _cachedApiKey = null;
+  _cachedToken = null;
+}
+
 void Function()? onUnauthenticated;
 
 final Dio apiClient = _createApiClient();
@@ -26,14 +35,14 @@ Dio _createApiClient() {
     onRequest: (options, handler) async {
       try {
         // 1. API Key device
-        final apiKey = await _storage.read(key: 'device_api_key');
-        if (apiKey != null) {
-          options.headers['x-api-key'] = apiKey;
+        _cachedApiKey ??= await _storage.read(key: 'device_api_key');
+        if (_cachedApiKey != null) {
+          options.headers['x-api-key'] = _cachedApiKey;
         } else {
           // 2. Bearer token fallback jika belum ada API key
-          final token = await _storage.read(key: 'better_auth_token');
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+          _cachedToken ??= await _storage.read(key: 'better_auth_token');
+          if (_cachedToken != null) {
+            options.headers['Authorization'] = 'Bearer $_cachedToken';
           }
         }
       } catch (err) {
@@ -44,6 +53,7 @@ Dio _createApiClient() {
     onError: (error, handler) async {
       if (error.response?.statusCode == 401) {
         // Auto logout — lazy import to avoid circular dependency
+        invalidateAuthCache();
         try {
           await _storage.delete(key: 'better_auth_token');
           await _storage.delete(key: 'device_api_key');

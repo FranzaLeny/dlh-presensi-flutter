@@ -15,8 +15,7 @@ Future<void> syncHariLibur() async {
     if (data != null && data['items'] is List) {
       final List<dynamic> items = data['items'];
       final list = items.map((item) => HariLibur.fromJson(item)).toList();
-      await HariLiburDao.clear();
-      await HariLiburDao.upsertAll(list);
+      await HariLiburDao.replaceBulk(list);
     }
   } catch (err) {
     debugPrint('Gagal sync hari libur: $err');

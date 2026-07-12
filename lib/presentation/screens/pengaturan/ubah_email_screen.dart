@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../../services/auth_service.dart';
 
 class UbahEmailScreen extends StatefulWidget {
@@ -43,15 +43,10 @@ class _UbahEmailScreenState extends State<UbahEmailScreen> {
           const SnackBar(content: Text('OTP telah dikirim ke email baru Anda')),
         );
       }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _showError(e.response?.data?['message'] ?? 'Gagal mengirim OTP');
-      }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showError('Terjadi kesalahan. Silakan coba lagi.');
+        _showError(getErrorMessage(e));
       }
     }
   }
@@ -75,15 +70,10 @@ class _UbahEmailScreenState extends State<UbahEmailScreen> {
         );
         context.pop();
       }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _showError(e.response?.data?['message'] ?? 'Gagal memverifikasi OTP');
-      }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showError('Terjadi kesalahan. Silakan coba lagi.');
+        _showError(getErrorMessage(e));
       }
     }
   }

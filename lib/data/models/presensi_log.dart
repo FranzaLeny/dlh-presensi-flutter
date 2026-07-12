@@ -4,7 +4,10 @@
 
 
 /// Jenis presensi
+import '../../core/utils/parse_utils.dart';
+
 enum TipePresensi {
+
   masuk,
   pulang,
   mulaiIstirahat,
@@ -128,33 +131,17 @@ class PresensiLog {
       tanggal: row['tanggal']?.toString() ?? '',
       tipe: TipePresensi.fromString(row['tipe']?.toString() ?? 'masuk'),
       waktu: row['waktu']?.toString() ?? '',
-      latitude: _parseDouble(row['latitude']),
-      longitude: _parseDouble(row['longitude']),
+      latitude: parseDouble(row['latitude']),
+      longitude: parseDouble(row['longitude']),
       fotoPath: row['foto_path']?.toString(),
       fotoUrl: row['foto_url']?.toString(),
-      isLuarRadius: _parseInt(row['is_luar_radius']),
-      status: _parseInt(row['status'], defaultValue: 2),
+      isLuarRadius: parseInt(row['is_luar_radius']),
+      status: parseInt(row['status'], defaultValue: 2),
       keterangan: row['keterangan']?.toString(),
-      isSynced: _parseInt(row['is_synced']) == 1,
+      isSynced: parseInt(row['is_synced']) == 1,
       deviceId: row['device_id']?.toString(),
       namaVerifikator: row['nama_verifikator']?.toString(),
     );
-  }
-
-  static double _parseDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
-  static int _parseInt(dynamic value, {int defaultValue = 0}) {
-    if (value == null) return defaultValue;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? defaultValue;
-    return defaultValue;
   }
 
   /// Ke format SQLite (snake_case)

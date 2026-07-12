@@ -2,18 +2,30 @@
 // SQLite Database Service
 // ====================================
 
+import 'dart:async';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 const String _dbName = 'presensi.db';
-const int _dbVersion = 5;
+const int _dbVersion = 1;
 
 Database? _db;
+Completer<Database>? _dbCompleter;
 
 /// Mendapatkan instance database (singleton)
 Future<Database> getDatabase() async {
   if (_db != null) return _db!;
-  _db = await _initDatabase();
+  if (_dbCompleter != null) return _dbCompleter!.future;
+  
+  _dbCompleter = Completer<Database>();
+  try {
+    _db = await _initDatabase();
+    _dbCompleter!.complete(_db!);
+  } catch (e) {
+    _dbCompleter!.completeError(e);
+    _dbCompleter = null;
+    rethrow;
+  }
   return _db!;
 }
 
@@ -25,14 +37,7 @@ Future<Database> _initDatabase() async {
     path,
     version: _dbVersion,
     onCreate: _onCreate,
-    onUpgrade: (db, oldVersion, newVersion) async {
-      // Karena masih dalam tahap development, kita drop dan buat ulang semua tabel
-      await db.execute('DROP TABLE IF EXISTS pengaturan_presensi');
-      await db.execute('DROP TABLE IF EXISTS presensi_log');
-      await db.execute('DROP TABLE IF EXISTS hari_libur');
-      await db.execute('DROP TABLE IF EXISTS presensi_absen');
-      await _onCreate(db, newVersion);
-    },
+
     onConfigure: (db) async {
       // PRAGMA journal_mode mengembalikan baris hasil sehingga harus memakai rawQuery
       await db.rawQuery('PRAGMA journal_mode = WAL');

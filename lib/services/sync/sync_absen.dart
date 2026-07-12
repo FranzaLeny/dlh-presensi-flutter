@@ -16,8 +16,7 @@ Future<void> syncAbsenPegawai() async {
       final List<dynamic> items = data['items'];
       final list = items.map((item) => PresensiAbsen.fromJson(item)).toList();
       
-      await AbsenDao.clear();
-      await AbsenDao.upsertAll(list);
+      await AbsenDao.replaceBulk(list);
     }
   } catch (err) {
     debugPrint('Gagal sync absen pegawai: $err');

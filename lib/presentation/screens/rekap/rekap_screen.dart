@@ -35,6 +35,18 @@ class _RekapScreenState extends State<RekapScreen> {
   List<PengaturanPresensi> _settings = [];
   List<HariLibur> _holidays = [];
   List<PresensiAbsen> _absences = [];
+  Map<String, List<PresensiLog>> _groupedLogs = {};
+  Map<String, ({String statusText, Color statusColor, double jamKerjaEfektif, double jamKerja})> _dayStatuses = {};
+  
+  // Summary Stats
+  double _monthlyJamKerjaEfektifTotal = 0.0;
+  double _monthlyJamKerjaActualTotal = 0.0;
+  int _totalTugas = 0;
+  int _totalCuti = 0;
+  int _totalSakit = 0;
+  int _totalHadir = 0;
+  int _totalTidakLengkap = 0;
+  
   bool _loading = true;
 
   @override
@@ -293,11 +305,59 @@ class _RekapScreenState extends State<RekapScreen> {
           _settings = settings;
           _holidays = holidays;
           _absences = absences;
-          _loading = false;
         });
+        _calculateSummary(); // calculate after setting data
+        setState(() => _loading = false);
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _calculateSummary() {
+    final selectedMonthStr = _selectedMonth.toString().padLeft(2, '0');
+    final selectedYearMonth = '$_selectedYear-$selectedMonthStr';
+
+    _groupedLogs.clear();
+    for (final log in _logs) {
+      if (log.tanggal.startsWith(selectedYearMonth)) {
+        _groupedLogs.putIfAbsent(log.tanggal, () => []).add(log);
+      }
+    }
+
+    final daysInMonth = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
+    
+    _monthlyJamKerjaEfektifTotal = 0.0;
+    _monthlyJamKerjaActualTotal = 0.0;
+    _totalTugas = 0;
+    _totalCuti = 0;
+    _totalSakit = 0;
+    _totalHadir = 0;
+    _totalTidakLengkap = 0;
+    _dayStatuses.clear();
+
+    for (int day = 1; day <= daysInMonth; day++) {
+      final dayStr = day.toString().padLeft(2, '0');
+      final dateStr = '$_selectedYear-$selectedMonthStr-$dayStr';
+      final dayLogs = _groupedLogs[dateStr] ?? [];
+      
+      final daily = calculateDailyHours(dateStr, dayLogs);
+      _dayStatuses[dateStr] = daily;
+
+      _monthlyJamKerjaEfektifTotal += daily.jamKerjaEfektif;
+      _monthlyJamKerjaActualTotal += daily.jamKerja;
+
+      if (daily.statusText == 'tugas') {
+        _totalTugas++;
+      } else if (daily.statusText == 'cuti') {
+        _totalCuti++;
+      } else if (daily.statusText == 'sakit') {
+        _totalSakit++;
+      } else if (daily.statusText == 'hadir') {
+        _totalHadir++;
+      } else if (daily.statusText == 'tidak_lengkap') {
+        _totalTidakLengkap++;
+      }
     }
   }
 
@@ -356,59 +416,11 @@ class _RekapScreenState extends State<RekapScreen> {
         isDark ? Colors.white.withValues(alpha: 0.06) : Colors.white;
     final textColor = isDark ? Colors.white : const Color(0xFF1A1B2E);
 
-    // Group logs by tanggal
-    final selectedMonthStr = _selectedMonth.toString().padLeft(2, '0');
-    final selectedYearMonth = '$_selectedYear-$selectedMonthStr';
+    final lengkapCount = _totalHadir;
+    final tidakLengkapCount = _totalTidakLengkap;
 
-    final grouped = <String, List<PresensiLog>>{};
-    for (final log in _logs) {
-      if (log.tanggal.startsWith(selectedYearMonth)) {
-        grouped.putIfAbsent(log.tanggal, () => []).add(log);
-      }
-    }
-
-    // Count stats and calculate daily metrics
-    final daysInMonth = DateTime(_selectedYear, _selectedMonth + 1, 0).day;
-    
-    double monthlyJamKerjaEfektifTotal = 0.0;
-    double monthlyJamKerjaActualTotal = 0.0;
-    int totalTugas = 0;
-    int totalCuti = 0;
-    int totalSakit = 0;
-    int totalHadir = 0;
-    int totalTidakLengkap = 0;
-
-    final dayStatuses = <String, ({String statusText, Color statusColor, double jamKerjaEfektif, double jamKerja})>{};
-
-    for (int day = 1; day <= daysInMonth; day++) {
-      final dayStr = day.toString().padLeft(2, '0');
-      final dateStr = '$_selectedYear-$selectedMonthStr-$dayStr';
-      final dayLogs = grouped[dateStr] ?? [];
-      
-      final daily = calculateDailyHours(dateStr, dayLogs);
-      dayStatuses[dateStr] = daily;
-
-      monthlyJamKerjaEfektifTotal += daily.jamKerjaEfektif;
-      monthlyJamKerjaActualTotal += daily.jamKerja;
-
-      if (daily.statusText == 'tugas') {
-        totalTugas++;
-      } else if (daily.statusText == 'cuti') {
-        totalCuti++;
-      } else if (daily.statusText == 'sakit') {
-        totalSakit++;
-      } else if (daily.statusText == 'hadir') {
-        totalHadir++;
-      } else if (daily.statusText == 'tidak_lengkap') {
-        totalTidakLengkap++;
-      }
-    }
-
-    final lengkapCount = totalHadir;
-    final tidakLengkapCount = totalTidakLengkap;
-
-    final persentaseJamKerja = monthlyJamKerjaEfektifTotal > 0
-        ? (monthlyJamKerjaActualTotal / monthlyJamKerjaEfektifTotal) * 100.0
+    final persentaseJamKerja = _monthlyJamKerjaEfektifTotal > 0
+        ? (_monthlyJamKerjaActualTotal / _monthlyJamKerjaEfektifTotal) * 100.0
         : 0.0;
 
     return Scaffold(
@@ -419,25 +431,6 @@ class _RekapScreenState extends State<RekapScreen> {
             style: TextStyle(fontWeight: FontWeight.w700, color: textColor)),
         centerTitle: true,
         elevation: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: isDark ? Colors.white24 : Colors.black12,
-                  width: 1.5,
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: IconButton(
-                icon: Icon(Icons.sync, color: textColor),
-                tooltip: 'Tarik Data Server',
-                onPressed: _loading ? null : _handleSync,
-              ),
-            ),
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -448,6 +441,9 @@ class _RekapScreenState extends State<RekapScreen> {
             textColor: textColor,
             onPrevMonth: () => _changeMonth(-1),
             onNextMonth: () => _changeMonth(1),
+            onSync: _handleSync,
+            isSyncing: _loading,
+            isDark: isDark,
           ),
 
           const SizedBox(height: 8),
@@ -464,12 +460,12 @@ class _RekapScreenState extends State<RekapScreen> {
                       children: [
                         // ── Monthly Summary Card ────────────────────
                         _MonthlySummaryCard(
-                          jamKerjaEfektif: monthlyJamKerjaEfektifTotal,
-                          jamKerjaActual: monthlyJamKerjaActualTotal,
+                          jamKerjaEfektif: _monthlyJamKerjaEfektifTotal,
+                          jamKerjaActual: _monthlyJamKerjaActualTotal,
                           persentase: persentaseJamKerja,
-                          totalTugas: totalTugas,
-                          totalCuti: totalCuti,
-                          totalSakit: totalSakit,
+                          totalTugas: _totalTugas,
+                          totalCuti: _totalCuti,
+                          totalSakit: _totalSakit,
                           lengkapCount: lengkapCount,
                           tidakLengkapCount: tidakLengkapCount,
                           cardBg: cardBg,
@@ -481,8 +477,8 @@ class _RekapScreenState extends State<RekapScreen> {
                           selectedYear: _selectedYear,
                           selectedMonth: _selectedMonth,
                           selectedDate: _selectedDate,
-                          grouped: grouped,
-                          dayStatuses: dayStatuses,
+                          grouped: _groupedLogs,
+                          dayStatuses: _dayStatuses,
                           textColor: textColor,
                           cardBg: cardBg,
                           onDateSelected: (dateStr) {
@@ -493,10 +489,10 @@ class _RekapScreenState extends State<RekapScreen> {
 
                         RekapDetailCard(
                           selectedDate: _selectedDate,
-                          logs: _selectedDate != null ? (grouped[_selectedDate] ?? []) : [],
-                          jamKerjaEfektif: _selectedDate != null ? (dayStatuses[_selectedDate!]?.jamKerjaEfektif ?? 0.0) : 0.0,
-                          jamKerja: _selectedDate != null ? (dayStatuses[_selectedDate!]?.jamKerja ?? 0.0) : 0.0,
-                          statusText: _selectedDate != null ? (dayStatuses[_selectedDate!]?.statusText ?? '') : '',
+                          logs: _selectedDate != null ? (_groupedLogs[_selectedDate] ?? []) : [],
+                          jamKerjaEfektif: _selectedDate != null ? (_dayStatuses[_selectedDate!]?.jamKerjaEfektif ?? 0.0) : 0.0,
+                          jamKerja: _selectedDate != null ? (_dayStatuses[_selectedDate!]?.jamKerja ?? 0.0) : 0.0,
+                          statusText: _selectedDate != null ? (_dayStatuses[_selectedDate!]?.statusText ?? '') : '',
                           approvedAbsence: _selectedDate != null
                               ? _absences.where((a) => a.tanggal == _selectedDate && (a.status == Status.approved || a.status == 20)).firstOrNull
                               : null,
@@ -541,7 +537,7 @@ class _MonthlySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subtextColor = textColor.withValues(alpha: 0.6);
+    final subtextColor = textColor.withValues(alpha: 0.85);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     // Choose progress bar color based on percentage
@@ -564,19 +560,7 @@ class _MonthlySummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                '📊 Ringkasan Bulanan',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+
           Row(
             children: [
               Expanded(
@@ -682,7 +666,7 @@ class _AbsenceMiniStat extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: textColor.withValues(alpha: 0.6))),
+        Text(label, style: TextStyle(fontSize: 11, color: textColor.withValues(alpha: 0.85))),
       ],
     );
   }

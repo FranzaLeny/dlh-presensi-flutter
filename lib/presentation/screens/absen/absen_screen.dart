@@ -101,7 +101,7 @@ class _AbsenScreenState extends State<AbsenScreen> {
       appBar: AppBar(
         backgroundColor: bgColor,
         title: Text(
-          'Daftar Kehadiran & Absen',
+          'Daftar Absen',
           style: TextStyle(fontWeight: FontWeight.w700, color: textColor),
         ),
         centerTitle: true,

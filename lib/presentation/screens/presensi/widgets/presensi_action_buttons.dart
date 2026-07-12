@@ -109,7 +109,7 @@ class PresensiActionButtons extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Anda sudah absen masuk, istirahat, dan pulang hari ini',
+                  'Anda sudah presensi masuk, istirahat, dan pulang hari ini',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: subtextColor),
                 ),
@@ -129,8 +129,8 @@ class PresensiActionButtons extends StatelessWidget {
         jenis: TipePresensi.masuk,
         color: AppColors.absenMasuk,
         emoji: '👋',
-        label: 'Absen Masuk',
-        sublabel: 'Tap untuk absen masuk',
+        label: 'Presensi Masuk',
+        sublabel: 'Tap untuk presensi masuk',
       );
     } else if (mulaiIstirahatLog == null) {
       actionButton = _buildAbsenButton(
@@ -139,7 +139,7 @@ class PresensiActionButtons extends StatelessWidget {
         color: AppColors.absenIstirahatMulai,
         emoji: '☕',
         label: 'Mulai Istirahat',
-        sublabel: 'Tap untuk absen keluar istirahat',
+        sublabel: 'Tap untuk presensi keluar istirahat',
       );
     } else if (selesaiIstirahatLog == null) {
       actionButton = _buildAbsenButton(
@@ -148,7 +148,7 @@ class PresensiActionButtons extends StatelessWidget {
         color: AppColors.absenIstirahatSelesai,
         emoji: '🏃',
         label: 'Selesai Istirahat',
-        sublabel: 'Tap untuk absen masuk istirahat',
+        sublabel: 'Tap untuk presensi masuk istirahat',
       );
     } else if (pulangLog == null) {
       actionButton = _buildAbsenButton(
@@ -156,8 +156,8 @@ class PresensiActionButtons extends StatelessWidget {
         jenis: TipePresensi.pulang,
         color: AppColors.absenPulang,
         emoji: '🏠',
-        label: 'Absen Pulang',
-        sublabel: 'Tap untuk absen pulang',
+        label: 'Presensi Pulang',
+        sublabel: 'Tap untuk presensi pulang',
       );
     }
 
@@ -269,7 +269,7 @@ class PresensiActionButtons extends StatelessWidget {
       child: TextButton(
         onPressed: loading ? null : onRedo,
         child: const Text(
-          '🗑️ Hapus Absen Hari Ini',
+          '🗑️ Hapus Presensi Hari Ini',
           style: TextStyle(color: AppColors.error),
         ),
       ),

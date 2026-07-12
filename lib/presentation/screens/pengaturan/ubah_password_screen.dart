@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../../services/auth_service.dart';
 
 class UbahPasswordScreen extends StatefulWidget {
@@ -61,19 +61,10 @@ class _UbahPasswordScreenState extends State<UbahPasswordScreen> {
         );
         context.pop();
       }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        if (e.response?.statusCode == 400) {
-          _showError('Password lama salah');
-        } else {
-          _showError(e.response?.data?['message'] ?? 'Gagal mengubah password');
-        }
-      }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showError('Terjadi kesalahan. Silakan coba lagi.');
+        _showError(getErrorMessage(e));
       }
     }
   }

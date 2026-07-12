@@ -29,19 +29,6 @@ Future<({int synced, int errors})> runFullSync({String? skpdId}) async {
   }
 }
 
-/// Menjalankan sinkronisasi data kecuali profil pegawai (Pengaturan + Hari Libur + Absen + Unsynced Logs)
-Future<({int synced, int errors})> runSyncExceptPegawai({String? skpdId}) async {
-  if (_isSyncing) return (synced: 0, errors: 0);
-  _isSyncing = true;
-  try {
-    await syncSettings(skpdId: skpdId);
-    await syncHariLibur();
-    await syncAbsenPegawai();
-    return await syncUnsyncedLogs();
-  } finally {
-    _isSyncing = false;
-  }
-}
 
 /// Cek apakah sync sedang berjalan
 bool isSyncRunning() => _isSyncing;

@@ -39,7 +39,7 @@ class ProfilInfoSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '📋 Data Kepegawaian',
+                '📋 Data Pegawai',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,

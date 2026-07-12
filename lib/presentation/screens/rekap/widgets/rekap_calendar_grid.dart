@@ -42,7 +42,7 @@ class RekapCalendarGrid extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: textColor.withValues(alpha: 0.6),
+                color: textColor.withValues(alpha: 0.8),
               ),
             ),
           ),
@@ -80,7 +80,7 @@ class RekapCalendarGrid extends StatelessWidget {
         } else {
           if (stColor == Colors.black || stColor == Colors.grey) {
             cellBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.06);
-            textStyleColor = isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.5);
+            textStyleColor = isDark ? Colors.white.withValues(alpha: 0.75) : Colors.black.withValues(alpha: 0.75);
           } else {
             cellBgColor = stColor.withValues(alpha: 0.15);
             textStyleColor = stColor;

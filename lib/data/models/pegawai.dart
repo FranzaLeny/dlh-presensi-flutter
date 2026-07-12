@@ -122,6 +122,17 @@ class Pegawai {
         'nama': nama,
         'namaTanpaGelar': namaTanpaGelar,
         'nip': nip,
+        'gelarBelakang': gelarBelakang,
+        'gelarDepan': gelarDepan,
+        'nik': nik,
+        'alamat': alamat,
+        'jabatan': jabatan,
+        'kodePangkatGolongan': kodePangkatGolongan,
+        'eselon': eselon,
+        'isAsn': isAsn,
+        'tempatLahir': tempatLahir,
+        'tanggalLahir': tanggalLahir,
+        'tanggalAsn': tanggalAsn,
         'skpdId': skpdId,
         'namaSkpd': namaSkpd,
         'userId': userId,
@@ -129,11 +140,84 @@ class Pegawai {
         'image': image,
         'localFotoPath': localFotoPath,
         'status': status,
+        'isTtd': isTtd,
         'createdAt': createdAt,
         'updatedAt': updatedAt,
         'createdBy': createdBy,
         'updatedBy': updatedBy,
+        'pangkatGolongan': pangkatGolongan?.toJson(),
+        'skpd': skpd?.toJson(),
       };
+
+  Pegawai copyWith({
+    String? id,
+    String? instansi,
+    String? jenisPegawai,
+    String? jenisKelamin,
+    String? nama,
+    String? namaTanpaGelar,
+    String? nip,
+    String? gelarBelakang,
+    String? gelarDepan,
+    String? nik,
+    String? alamat,
+    String? jabatan,
+    String? kodePangkatGolongan,
+    int? eselon,
+    int? isAsn,
+    String? tempatLahir,
+    String? tanggalLahir,
+    String? tanggalAsn,
+    String? skpdId,
+    String? namaSkpd,
+    String? userId,
+    String? username,
+    String? image,
+    String? localFotoPath,
+    int? status,
+    int? isTtd,
+    String? createdAt,
+    String? updatedAt,
+    String? createdBy,
+    String? updatedBy,
+    PangkatGolongan? pangkatGolongan,
+    Skpd? skpd,
+  }) {
+    return Pegawai(
+      id: id ?? this.id,
+      instansi: instansi ?? this.instansi,
+      jenisPegawai: jenisPegawai ?? this.jenisPegawai,
+      jenisKelamin: jenisKelamin ?? this.jenisKelamin,
+      nama: nama ?? this.nama,
+      namaTanpaGelar: namaTanpaGelar ?? this.namaTanpaGelar,
+      nip: nip ?? this.nip,
+      gelarBelakang: gelarBelakang ?? this.gelarBelakang,
+      gelarDepan: gelarDepan ?? this.gelarDepan,
+      nik: nik ?? this.nik,
+      alamat: alamat ?? this.alamat,
+      jabatan: jabatan ?? this.jabatan,
+      kodePangkatGolongan: kodePangkatGolongan ?? this.kodePangkatGolongan,
+      eselon: eselon ?? this.eselon,
+      isAsn: isAsn ?? this.isAsn,
+      tempatLahir: tempatLahir ?? this.tempatLahir,
+      tanggalLahir: tanggalLahir ?? this.tanggalLahir,
+      tanggalAsn: tanggalAsn ?? this.tanggalAsn,
+      skpdId: skpdId ?? this.skpdId,
+      namaSkpd: namaSkpd ?? this.namaSkpd,
+      userId: userId ?? this.userId,
+      username: username ?? this.username,
+      image: image ?? this.image,
+      localFotoPath: localFotoPath ?? this.localFotoPath,
+      status: status ?? this.status,
+      isTtd: isTtd ?? this.isTtd,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      createdBy: createdBy ?? this.createdBy,
+      updatedBy: updatedBy ?? this.updatedBy,
+      pangkatGolongan: pangkatGolongan ?? this.pangkatGolongan,
+      skpd: skpd ?? this.skpd,
+    );
+  }
 }
 
 class PangkatGolongan {
@@ -163,6 +247,15 @@ class PangkatGolongan {
       keterangan: json['keterangan'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'kode': kode,
+        'pangkat': pangkat,
+        'golongan': golongan,
+        'ruang': ruang,
+        'status': status,
+        'keterangan': keterangan,
+      };
 }
 
 class Skpd {
@@ -192,4 +285,13 @@ class Skpd {
       isDefault: (json['isDefault'] as num).toInt(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'kode': kode,
+        'nama': nama,
+        'singkatan': singkatan,
+        'status': status,
+        'isDefault': isDefault,
+      };
 }

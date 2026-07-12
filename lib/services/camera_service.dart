@@ -34,6 +34,11 @@ class CameraService {
 
     final sourceFile = File(sourcePath);
     await sourceFile.copy(destPath);
+    
+    // Hapus file sementara (temp file) dari image_picker
+    if (await sourceFile.exists()) {
+      await sourceFile.delete();
+    }
 
     return destPath;
   }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/utils/parse_utils.dart';
 import 'jadwal_harian.dart';
 
 // ====================================
@@ -77,16 +78,16 @@ class PengaturanPresensi {
       id: row['id']?.toString() ?? '',
       skpdId: row['skpd_id']?.toString() ?? '',
       namaKantor: row['nama_kantor']?.toString(),
-      latitude: _parseDouble(row['latitude']),
-      longitude: _parseDouble(row['longitude']),
-      radius: _parseInt(row['radius'], defaultValue: 100),
+      latitude: parseDouble(row['latitude']),
+      longitude: parseDouble(row['longitude']),
+      radius: parseInt(row['radius'], defaultValue: 100),
       jamMasuk: row['jam_masuk']?.toString() ?? '08:00:00',
       jamIstirahatMulai: row['jam_istirahat_mulai']?.toString() ?? '12:00:00',
       jamIstirahatSelesai: row['jam_istirahat_selesai']?.toString() ?? '13:00:00',
       jamPulang: row['jam_pulang']?.toString() ?? '16:00:00',
       tanggalMulai: row['tanggal_mulai']?.toString(),
       tanggalBerakhir: row['tanggal_berakhir']?.toString(),
-      status: _parseInt(row['status'], defaultValue: 10),
+      status: parseInt(row['status'], defaultValue: 10),
       updatedAt: row['updated_at']?.toString(),
       jadwalHarian: row['jadwal_harian_json'] != null
           ? (jsonDecode(row['jadwal_harian_json'] as String) as List)
@@ -94,22 +95,6 @@ class PengaturanPresensi {
               .toList()
           : null,
     );
-  }
-
-  static double _parseDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0.0;
-    return 0.0;
-  }
-
-  static int _parseInt(dynamic value, {int defaultValue = 0}) {
-    if (value == null) return defaultValue;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? defaultValue;
-    return defaultValue;
   }
 
   /// Ke format SQLite (snake_case)
@@ -127,7 +112,7 @@ class PengaturanPresensi {
         'tanggal_mulai': tanggalMulai,
         'tanggal_berakhir': tanggalBerakhir,
         'status': status,
-        'updated_at': updatedAt ?? DateTime.now().toIso8601String(),
+        'updated_at': updatedAt,
         'jadwal_harian_json': jadwalHarian != null
             ? jsonEncode(jadwalHarian!.map((e) => e.toJson()).toList())
             : null,

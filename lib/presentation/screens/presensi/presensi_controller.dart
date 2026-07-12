@@ -3,19 +3,21 @@
 // ====================================
 
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/constants/status.dart';
 import '../../../core/utils/date_utils.dart' as date_utils;
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/uuid_utils.dart';
-import '../../../data/local/presensi_dao.dart';
-import '../../../data/local/settings_dao.dart';
 import '../../../data/local/absen_dao.dart';
 import '../../../data/local/hari_libur_dao.dart';
+import '../../../data/local/presensi_dao.dart';
+import '../../../data/local/settings_dao.dart';
 import '../../../data/models/pengaturan_presensi.dart';
-import '../../../data/models/presensi_log.dart';
 import '../../../data/models/presensi_absen.dart';
+import '../../../data/models/presensi_log.dart';
 import '../../../providers/providers.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/sync_engine.dart';
@@ -23,7 +25,8 @@ import '../../../services/time_service.dart';
 import 'presensi_camera_controller.dart';
 import 'presensi_screen.dart';
 
-mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraController {
+mixin PresensiController
+    on ConsumerState<PresensiScreen>, PresensiCameraController {
   DateTime currentTime = DateTime.now();
   PengaturanPresensi? pengaturan;
   List<PresensiLog> todayLogs = [];
@@ -34,19 +37,28 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
   bool retryingTime = false;
   Timer? timer;
 
-  PresensiLog? get masukLog => todayLogs.where((l) => l.tipe == TipePresensi.masuk).firstOrNull;
-  PresensiLog? get mulaiIstirahatLog => todayLogs.where((l) => l.tipe == TipePresensi.mulaiIstirahat).firstOrNull;
-  PresensiLog? get selesaiIstirahatLog => todayLogs.where((l) => l.tipe == TipePresensi.selesaiIstirahat).firstOrNull;
-  PresensiLog? get pulangLog => todayLogs.where((l) => l.tipe == TipePresensi.pulang).firstOrNull;
+  PresensiLog? get masukLog =>
+      todayLogs.where((l) => l.tipe == TipePresensi.masuk).firstOrNull;
+  PresensiLog? get mulaiIstirahatLog =>
+      todayLogs.where((l) => l.tipe == TipePresensi.mulaiIstirahat).firstOrNull;
+  PresensiLog? get selesaiIstirahatLog => todayLogs
+      .where((l) => l.tipe == TipePresensi.selesaiIstirahat)
+      .firstOrNull;
+  PresensiLog? get pulangLog =>
+      todayLogs.where((l) => l.tipe == TipePresensi.pulang).firstOrNull;
 
   void startTimer() {
     timer = Timer.periodic(const Duration(seconds: 1), (_) async {
       try {
         final est = await TimeService.getEstimatedServerTime();
         if (!mounted) return;
-        setState(() => currentTime = est);
-        final drift = (DateTime.now().millisecondsSinceEpoch - est.millisecondsSinceEpoch).abs();
-        setState(() => timeMismatch = drift > 60000);
+        final drift =
+            (DateTime.now().millisecondsSinceEpoch - est.millisecondsSinceEpoch)
+                .abs();
+        setState(() {
+          currentTime = est;
+          timeMismatch = drift > 60000;
+        });
       } catch (_) {
         if (mounted) {
           setState(() {
@@ -61,112 +73,69 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
   Future<void> loadData() async {
     setState(() => loading = true);
     try {
-      await TimeService.syncTime();
-      var settings = await SettingsDao.getFirst();
-      if (settings == null) {
-        final pegawai = await AuthService.getPegawai();
-        if (pegawai?.skpdId != null) {
-          await syncSettings(skpdId: pegawai!.skpdId);
-          settings = await SettingsDao.getFirst();
-        }
-      }
-      pengaturan = settings;
-      var today = TimeService.getUTC8DateString(DateTime.now());
-      try {
-        final serverTime = await TimeService.getEstimatedServerTime();
-        today = TimeService.getUTC8DateString(serverTime);
-      } catch (_) {}
+      // Fast Local Load
       final pegawai = await AuthService.getPegawai();
-      final pegawaiId = pegawai?.id ?? 'unknown';
-      var logs = await PresensiDao.getByDate(pegawaiId, today);
-      final todayAbsences = await AbsenDao.getByDate(today);
-      final activeAbsence = todayAbsences.where((a) => a.status == Status.approved || a.status == 20).firstOrNull;
-      
-      // Resolve holiday status
-      final parsedDate = DateTime.tryParse(today) ?? DateTime.now();
-      final dayOfWeek = parsedDate.weekday;
-      final holiday = await HariLiburDao.getByDate(today);
-      final dayOfWeekIndex = parsedDate.weekday % 7;
-      final override = pengaturan?.jadwalHarian?.where((j) => j.hari == dayOfWeekIndex).firstOrNull;
-      
-      bool resolvedLibur = false;
-      String? resolvedLiburNama;
+      if (pegawai == null) return;
+      final pegawaiId = pegawai.id;
 
-      if (holiday != null) {
-        resolvedLibur = true;
-        resolvedLiburNama = holiday.nama;
-      } else if (override != null) {
-        if (override.isLibur == 1) {
-          resolvedLibur = true;
-          resolvedLiburNama = 'Libur Hari ${_getNamaHari(dayOfWeek)}';
-        } else {
-          resolvedLibur = false;
-        }
-      } else {
-        final isWeekend = dayOfWeek == DateTime.saturday || dayOfWeek == DateTime.sunday;
-        if (isWeekend) {
-          resolvedLibur = true;
-          resolvedLiburNama = 'Libur Hari ${_getNamaHari(dayOfWeek)}';
-        }
-      }
-      
+      var settings = await SettingsDao.getFirst();
+      pengaturan = settings;
+
+      final serverTime = await TimeService.getEstimatedServerTime().catchError(
+        (_) => DateTime.now(),
+      );
+      final today = TimeService.getUTC8DateString(serverTime);
+
+      final logs = await PresensiDao.getByDate(pegawaiId, today);
+      final todayAbsences = await AbsenDao.getByDate(today);
+      final activeAbsence = todayAbsences
+          .where((a) => a.status == Status.approved || a.status == 20)
+          .firstOrNull;
+
+      final holiday = await HariLiburDao.getByDate(today);
+      final holidayInfo = _resolveHoliday(holiday, settings, today);
+
       if (mounted) {
         setState(() {
           todayLogs = logs;
           approvedAbsence = activeAbsence;
-          isTodayLibur = resolvedLibur;
-          liburNama = resolvedLiburNama;
+          isTodayLibur = holidayInfo.isLibur;
+          liburNama = holidayInfo.nama;
           loading = false;
         });
       }
-      final now = DateTime.now();
-      try {
-        if (pegawai?.skpdId != null) {
-          await syncSettings(skpdId: pegawai!.skpdId);
-          final updatedSettings = await SettingsDao.getFirst();
-          if (updatedSettings != null) {
-            pengaturan = updatedSettings;
-          }
-        }
-        await syncLogsBulanan(now.year, now.month);
-        logs = await PresensiDao.getByDate(pegawaiId, today);
-        final updatedAbsences = await AbsenDao.getByDate(today);
-        final updatedActiveAbsence = updatedAbsences.where((a) => a.status == Status.approved || a.status == 20).firstOrNull;
-        
-        final dayOfWeekIndex = parsedDate.weekday % 7;
-        final updatedOverride = pengaturan?.jadwalHarian?.where((j) => j.hari == dayOfWeekIndex).firstOrNull;
-        
-        final updatedHoliday = await HariLiburDao.getByDate(today);
-        bool updatedResolvedLibur = false;
-        String? updatedResolvedLiburNama;
 
-        if (updatedHoliday != null) {
-          updatedResolvedLibur = true;
-          updatedResolvedLiburNama = updatedHoliday.nama;
-        } else if (updatedOverride != null) {
-          if (updatedOverride.isLibur == 1) {
-            updatedResolvedLibur = true;
-            updatedResolvedLiburNama = 'Libur Hari ${_getNamaHari(dayOfWeek)}';
-          } else {
-            updatedResolvedLibur = false;
-          }
-        } else {
-          final isWeekend = dayOfWeek == DateTime.saturday || dayOfWeek == DateTime.sunday;
-          if (isWeekend) {
-            updatedResolvedLibur = true;
-            updatedResolvedLiburNama = 'Libur Hari ${_getNamaHari(dayOfWeek)}';
-          }
-        }
-        
+      // Background Sync
+      try {
+        await TimeService.syncTime();
+        await syncSettings(skpdId: pegawai.skpdId);
+        final now = DateTime.now();
+        await syncLogsBulanan(now.year, now.month);
+
+        final freshSettings = await SettingsDao.getFirst();
+        final freshLogs = await PresensiDao.getByDate(pegawaiId, today);
+        final freshAbsences = await AbsenDao.getByDate(today);
+        final freshActiveAbsence = freshAbsences
+            .where((a) => a.status == Status.approved || a.status == 20)
+            .firstOrNull;
+        final freshHoliday = await HariLiburDao.getByDate(today);
+        final freshHolidayInfo = _resolveHoliday(
+          freshHoliday,
+          freshSettings,
+          today,
+        );
+
         if (mounted) {
           setState(() {
-            todayLogs = logs;
-            approvedAbsence = updatedActiveAbsence;
-            isTodayLibur = updatedResolvedLibur;
-            liburNama = updatedResolvedLiburNama;
+            pengaturan = freshSettings;
+            todayLogs = freshLogs;
+            approvedAbsence = freshActiveAbsence;
+            isTodayLibur = freshHolidayInfo.isLibur;
+            liburNama = freshHolidayInfo.nama;
           });
         }
       } catch (_) {}
+
       if (pengaturan != null) {
         ref.read(geofenceProvider.notifier).checkGeofence(pengaturan!);
       }
@@ -178,16 +147,53 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
     }
   }
 
+  ({bool isLibur, String? nama}) _resolveHoliday(
+    dynamic holiday,
+    PengaturanPresensi? pengaturan,
+    String today,
+  ) {
+    final parsedDate = DateTime.tryParse(today) ?? DateTime.now();
+    final dayOfWeek = parsedDate.weekday;
+    final dayOfWeekIndex = dayOfWeek % 7;
+    final override = pengaturan?.jadwalHarian
+        ?.where((j) => j.hari == dayOfWeekIndex)
+        .firstOrNull;
+
+    if (holiday != null) {
+      return (isLibur: true, nama: holiday.nama);
+    } else if (override != null) {
+      if (override.isLibur == 1) {
+        return (isLibur: true, nama: 'Libur Hari ${_getNamaHari(dayOfWeek)}');
+      }
+      return (isLibur: false, nama: null);
+    } else {
+      final isWeekend =
+          dayOfWeek == DateTime.saturday || dayOfWeek == DateTime.sunday;
+      if (isWeekend) {
+        return (isLibur: true, nama: 'Libur Hari ${_getNamaHari(dayOfWeek)}');
+      }
+      return (isLibur: false, nama: null);
+    }
+  }
+
   Future<void> handleAbsen(TipePresensi jenis) async {
     if (pengaturan == null) {
-      showAlert('Pengaturan Belum Sinkron', 'Pengaturan presensi belum dimuat. Silakan lakukan sinkronisasi data terlebih dahulu.');
+      showAlert(
+        'Pengaturan Belum Sinkron',
+        'Pengaturan presensi belum dimuat. Silakan lakukan sinkronisasi data terlebih dahulu.',
+      );
       return;
     }
     setState(() => loading = true);
     try {
-      final result = await ref.read(geofenceProvider.notifier).checkGeofence(pengaturan!);
+      final result = await ref
+          .read(geofenceProvider.notifier)
+          .checkGeofence(pengaturan!);
       if (result == null) {
-        showAlert('Gagal Mendapatkan Lokasi', 'Pastikan GPS perangkat Anda aktif dan izin lokasi telah diberikan.');
+        showAlert(
+          'Gagal Mendapatkan Lokasi',
+          'Pastikan GPS perangkat Anda aktif dan izin lokasi telah diberikan.',
+        );
         return;
       }
       if (!result.isInRadius) {
@@ -198,7 +204,12 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
         });
         return;
       }
-      await savePresensi(jenis, result.coordinates.latitude, result.coordinates.longitude, false);
+      await savePresensi(
+        jenis,
+        result.coordinates.latitude,
+        result.coordinates.longitude,
+        false,
+      );
     } catch (err) {
       showAlert('Gagal Presensi', getErrorMessage(err));
     } finally {
@@ -207,10 +218,19 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
   }
 
   @override
-  Future<void> savePresensi(TipePresensi jenis, double lat, double lon, bool isLuarRadius, {String? fotoPath}) async {
+  Future<void> savePresensi(
+    TipePresensi jenis,
+    double lat,
+    double lon,
+    bool isLuarRadius, {
+    String? fotoPath,
+  }) async {
     final pegawai = await AuthService.getPegawai();
     if (pegawai?.id == null || pengaturan?.id == null) {
-      showAlert('Data Tidak Ditemukan', 'Data pegawai atau pengaturan presensi tidak ditemukan di lokal.');
+      showAlert(
+        'Data Tidak Ditemukan',
+        'Data pegawai atau pengaturan presensi tidak ditemukan di lokal.',
+      );
       return;
     }
     DateTime nowDb;
@@ -223,7 +243,10 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
     final deviceTime = DateTime.now().millisecondsSinceEpoch;
     final diff = (deviceTime - nowDb.millisecondsSinceEpoch).abs();
     if (diff > 60000) {
-      showAlert('Perbedaan Waktu Terdeteksi', 'Waktu HP Anda tidak sesuai dengan server. Silakan atur waktu HP Anda ke otomatis.');
+      showAlert(
+        'Perbedaan Waktu Terdeteksi',
+        'Waktu HP Anda tidak sesuai dengan server. Silakan atur waktu HP Anda ke otomatis.',
+      );
       return;
     }
     final today = TimeService.getUTC8DateString(nowDb);
@@ -245,13 +268,16 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
     await PresensiDao.create(newLog);
     todayLogs = await PresensiDao.getByDate(pegawai.id, today);
     final nowDateTime = DateTime.now();
-    await syncLogsBulanan(nowDateTime.year, nowDateTime.month).catchError((_) => (synced: 0, errors: 0));
+    await syncLogsBulanan(
+      nowDateTime.year,
+      nowDateTime.month,
+    ).catchError((_) => (synced: 0, errors: 0));
     todayLogs = await PresensiDao.getByDate(pegawai.id, today);
     setState(() {});
     final timeFormatted = date_utils.formatTimeWithSeconds(nowDb);
     showAlert(
       '✅ Berhasil',
-      'Absen ${jenis.displayLabel} berhasil dicatat pada pukul $timeFormatted${isLuarRadius ? '\n\n⚠️ Lokasi terdeteksi diluar area kantor' : ''}',
+      'Presensi ${jenis.displayLabel} berhasil dicatat pada pukul $timeFormatted${isLuarRadius ? '\n\n⚠️ Lokasi terdeteksi diluar area kantor' : ''}',
     );
   }
 
@@ -260,14 +286,22 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
     try {
       await TimeService.syncTime();
       final est = await TimeService.getEstimatedServerTime();
-      final drift = (DateTime.now().millisecondsSinceEpoch - est.millisecondsSinceEpoch).abs();
+      final drift =
+          (DateTime.now().millisecondsSinceEpoch - est.millisecondsSinceEpoch)
+              .abs();
       if (drift <= 60000) {
         setState(() => timeMismatch = false);
       } else {
-        showAlert('Waktu Masih Tidak Sesuai', 'Silakan buka Pengaturan → Tanggal & Waktu → aktifkan "Atur waktu otomatis".');
+        showAlert(
+          'Waktu Masih Tidak Sesuai',
+          'Silakan buka Pengaturan → Tanggal & Waktu → aktifkan "Atur waktu otomatis".',
+        );
       }
     } catch (_) {
-      showAlert('Gagal Sinkronisasi', 'Pastikan Anda terhubung ke internet dan waktu perangkat sudah diatur otomatis.');
+      showAlert(
+        'Gagal Sinkronisasi',
+        'Pastikan Anda terhubung ke internet dan waktu perangkat sudah diatur otomatis.',
+      );
     } finally {
       if (mounted) setState(() => retryingTime = false);
     }
@@ -279,9 +313,14 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Konfirmasi Hapus Absen'),
-        content: const Text('Apakah Anda yakin ingin menghapus data presensi hari ini yang belum disingkron?'),
+        content: const Text(
+          'Apakah Anda yakin ingin menghapus data presensi hari ini yang belum disingkron?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -299,7 +338,10 @@ mixin PresensiController on ConsumerState<PresensiScreen>, PresensiCameraControl
         }
       }
       await loadData();
-      showAlert('Berhasil', 'Data presensi hari ini yang belum disingkron berhasil dihapus.');
+      showAlert(
+        'Berhasil',
+        'Data presensi hari ini yang belum disingkron berhasil dihapus.',
+      );
     } catch (_) {
       showAlert('Gagal Reset', 'Gagal menghapus data presensi lokal.');
     } finally {

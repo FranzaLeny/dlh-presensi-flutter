@@ -6,7 +6,7 @@ import '../storage_service.dart';
 
 /// Upload foto yang pending untuk sebuah log
 Future<void> uploadPendingPhotos(PresensiLog log) async {
-  if (log.isLuarRadius > 0 && log.fotoPath != null && log.fotoUrl == null) {
+  if (log.fotoPath != null && log.fotoUrl == null) {
     try {
       final url = await uploadFoto(
         log.fotoPath!,

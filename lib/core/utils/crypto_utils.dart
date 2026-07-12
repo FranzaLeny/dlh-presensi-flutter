@@ -30,8 +30,8 @@ SecureRandom _secureRandom() {
 }
 
 /// Menghasilkan keypair RSA dan mengembalikan dalam format PEM.
-/// Menggunakan RSA 1024-bit secara bawaan untuk kecepatan di perangkat seluler.
-KeyPairPem generateKeyPair({int bits = 1024}) {
+/// Menggunakan RSA 2048-bit secara bawaan untuk keamanan yang lebih baik.
+KeyPairPem generateKeyPair({int bits = 2048}) {
   final keyGen = RSAKeyGenerator()
     ..init(ParametersWithRandom(
       RSAKeyGeneratorParameters(BigInt.from(65537), bits, 64),

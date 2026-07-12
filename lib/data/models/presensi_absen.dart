@@ -1,6 +1,4 @@
-// ====================================
-// Model: PresensiAbsen — Data Pengajuan Absen
-// ====================================
+import '../../core/utils/parse_utils.dart';
 
 class PresensiAbsen {
   final String id;
@@ -59,20 +57,12 @@ class PresensiAbsen {
       tipe: row['tipe']?.toString() ?? 'cuti',
       keterangan: row['keterangan']?.toString(),
       dokumenUrl: row['dokumen_url']?.toString(),
-      status: _parseInt(row['status'], defaultValue: 0),
+      status: parseInt(row['status'], defaultValue: 0),
       createdAt: row['created_at']?.toString(),
       updatedAt: row['updated_at']?.toString(),
       createdBy: row['created_by']?.toString(),
       updatedBy: row['updated_by']?.toString(),
     );
-  }
-
-  static int _parseInt(dynamic value, {int defaultValue = 0}) {
-    if (value == null) return defaultValue;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? defaultValue;
-    return defaultValue;
   }
 
   /// Ke format SQLite (snake_case)

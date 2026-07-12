@@ -9,6 +9,7 @@ import '../../../core/utils/error_utils.dart';
 import '../../../data/local/presensi_dao.dart';
 import '../../../data/models/presensi_log.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/time_service.dart';
 import '../../../services/sync_engine.dart';
 import 'widgets/riwayat_log_item.dart';
 
@@ -36,9 +37,8 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
     }
     try {
       final pegawai = await AuthService.getPegawai();
-      final now = DateTime.now();
-      final today =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final now = await TimeService.getEstimatedServerTime();
+      final today = TimeService.getUTC8DateString(now);
       final logs = await PresensiDao.getTodayAndUnsynced(
         pegawai?.id ?? '',
         today,
@@ -53,7 +53,7 @@ class _RiwayatScreenState extends State<RiwayatScreen> {
   Future<void> _handleRefresh() async {
     setState(() => _loading = true);
     try {
-      final now = DateTime.now();
+      final now = await TimeService.getEstimatedServerTime();
       await syncLogsBulanan(now.year, now.month);
     } catch (_) {}
     await _loadData();

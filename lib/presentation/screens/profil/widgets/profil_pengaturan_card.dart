@@ -39,7 +39,7 @@ class ProfilPengaturanCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '🏢 Detail Pengaturan Presensi',
+                '🏢 Pengaturan Presensi',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -96,7 +96,7 @@ class ProfilPengaturanCard extends StatelessWidget {
                 final dayOfWeek = today.weekday % 7;
                 final override = pengaturan!.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
                 if (override != null) {
-                  return override.isLibur == 1 ? 'Libur (Override)' : 'Kerja (Override)';
+                  return override.isLibur == 1 ? 'Libur' : 'Kerja';
                 }
                 final isWeekend = today.weekday == DateTime.saturday || today.weekday == DateTime.sunday;
                 return isWeekend ? 'Libur (Akhir Pekan)' : 'Hari Kerja';

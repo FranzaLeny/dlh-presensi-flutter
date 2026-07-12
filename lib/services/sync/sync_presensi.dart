@@ -1,10 +1,9 @@
-import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../core/utils/crypto_utils.dart';
+import '../../core/utils/device_utils.dart';
 import '../../data/local/presensi_dao.dart';
 import '../../data/models/presensi_log.dart';
 import '../../data/models/sync_response.dart';
@@ -13,22 +12,6 @@ import '../auth_service.dart';
 import 'sync_upload.dart';
 
 const _storage = FlutterSecureStorage();
-
-/// Mendapatkan unique device ID
-Future<String> _getDeviceId() async {
-  final deviceInfo = DeviceInfoPlugin();
-  try {
-    if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.id;
-    }
-    if (Platform.isIOS) {
-      final iosInfo = await deviceInfo.iosInfo;
-      return iosInfo.identifierForVendor ?? 'unknown-ios';
-    }
-  } catch (_) {}
-  return 'unknown-device';
-}
 
 /// Hanya melakukan push/sinkronisasi semua log presensi yang belum tersinkronisasi di lokal
 Future<({int synced, int errors})> syncUnsyncedLogs() async {
@@ -54,7 +37,7 @@ Future<({int synced, int errors})> syncLogsBulanan(int year, int month) async {
       // Hitung tanggal 1 dan tanggal terakhir bulan
       final startOfMonth = DateTime(year, month, 1);
       final endOfMonth = DateTime(year, month + 1, 0);
-      
+
       final response = await apiClient.get(
         '/umum/presensi/log',
         queryParameters: {
@@ -62,14 +45,21 @@ Future<({int synced, int errors})> syncLogsBulanan(int year, int month) async {
           'tanggalSelesai': endOfMonth.toIso8601String().split('T')[0],
         },
       );
-      
+
       final data = response.data;
       if (data != null && data['items'] is List) {
         final List<dynamic> items = data['items'];
-        final serverLogs = items.map((item) => PresensiLog.fromJson(item)).toList();
-        
+        final serverLogs = items
+            .map((item) => PresensiLog.fromJson(item))
+            .toList();
+
         // 3. Simpan ke lokal dan timpa history lama
-        await PresensiDao.replaceHistoryByMonth(pegawai.id, year, month, serverLogs);
+        await PresensiDao.replaceHistoryByMonth(
+          pegawai.id,
+          year,
+          month,
+          serverLogs,
+        );
       }
     }
   } catch (err) {
@@ -80,7 +70,9 @@ Future<({int synced, int errors})> syncLogsBulanan(int year, int month) async {
 }
 
 /// Helper internal untuk mengirim sejumlah log presensi
-Future<({int synced, int errors})> _syncLogBatch(List<PresensiLog> logsToSync) async {
+Future<({int synced, int errors})> _syncLogBatch(
+  List<PresensiLog> logsToSync,
+) async {
   if (logsToSync.isEmpty) return (synced: 0, errors: 0);
 
   var syncedCount = 0;
@@ -106,12 +98,11 @@ Future<({int synced, int errors})> _syncLogBatch(List<PresensiLog> logsToSync) a
     }
 
     // 3. Ambil log terbaru dari lokal (karena foto URL mungkin telah di-update)
-    final allUnsynced = await PresensiDao.getUnsynced();
-    final refreshedLogs = allUnsynced.where((l) => idsToSync.contains(l.id)).toList();
+    final refreshedLogs = await PresensiDao.getByIds(idsToSync.toList());
 
     if (refreshedLogs.isEmpty) return (synced: 0, errors: errorCount);
 
-    final deviceId = await _getDeviceId();
+    final deviceId = await DeviceUtils.getDeviceId();
     final payloadItems = _logsToSyncItems(refreshedLogs, deviceId);
 
     if (payloadItems.isEmpty) return (synced: 0, errors: errorCount);
@@ -123,7 +114,7 @@ Future<({int synced, int errors})> _syncLogBatch(List<PresensiLog> logsToSync) a
     if (apiKeyId != null && privateKey == null) {
       await _storage.delete(key: 'device_api_key_id');
       await AuthService.registerDeviceKey();
-      
+
       apiKeyId = await _storage.read(key: 'device_api_key_id');
       privateKey = await _storage.read(key: 'device_private_key');
     }
@@ -132,12 +123,13 @@ Future<({int synced, int errors})> _syncLogBatch(List<PresensiLog> logsToSync) a
       return (synced: 0, errors: errorCount + refreshedLogs.length);
     }
 
+    final serializedPayload = payloadItems
+        .map((item) => item.toJson())
+        .toList();
+
     String signature;
     try {
-      signature = signPayload(
-        payloadItems.map((item) => item.toJson()).toList(),
-        privateKey,
-      );
+      signature = signPayload(serializedPayload, privateKey);
     } catch (e) {
       return (synced: 0, errors: errorCount + refreshedLogs.length);
     }
@@ -145,7 +137,7 @@ Future<({int synced, int errors})> _syncLogBatch(List<PresensiLog> logsToSync) a
     final response = await apiClient.post(
       '/umum/presensi/log',
       data: {
-        'logs': payloadItems.map((item) => item.toJson()).toList(),
+        'logs': serializedPayload,
         'apiKeyId': apiKeyId,
         'signature': signature,
       },
@@ -205,8 +197,7 @@ Future<bool> syncSingleLog(String logId) async {
     throw Exception('Tidak ada koneksi internet');
   }
 
-  final pendingLogs = await PresensiDao.getUnsynced();
-  final log = pendingLogs.where((l) => l.id == logId).firstOrNull;
+  final log = await PresensiDao.getById(logId);
   if (log == null) {
     throw Exception('Data presensi tidak ditemukan di lokal');
   }

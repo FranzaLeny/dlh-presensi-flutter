@@ -6,7 +6,7 @@ import 'dart:math';
 
 import 'package:geolocator/geolocator.dart';
 
-import '../data/models/sync_response.dart';
+
 
 class LocationService {
   LocationService._();
@@ -38,15 +38,33 @@ class LocationService {
       ).timeout(
         const Duration(seconds: 10),
       );
+
+      // Ensure the location is not older than 2 minutes (staleness check)
+      if (DateTime.now().difference(position.timestamp).inMinutes > 2) {
+        // Try one more time forcing location update
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 15),
+          ),
+        );
+      }
     } catch (_) {
       final lastKnown = await Geolocator.getLastKnownPosition();
-      if (lastKnown != null) {
+      if (lastKnown != null && DateTime.now().difference(lastKnown.timestamp).inMinutes <= 2) {
         position = lastKnown;
       } else {
         throw Exception(
           'Gagal mendapatkan lokasi. Pastikan GPS aktif dan Anda berada di area terbuka.',
         );
       }
+    }
+
+
+    if (position.isMocked) {
+      throw Exception(
+        'Fake GPS terdeteksi. Harap matikan aplikasi pemalsu lokasi untuk melakukan presensi.',
+      );
     }
 
     return Coordinates(
@@ -118,4 +136,30 @@ class LocationService {
 
     return R * 2 * atan2(sqrt(a), sqrt(1 - a));
   }
+}
+
+/// Koordinat GPS
+class Coordinates {
+  final double latitude;
+  final double longitude;
+  final double? accuracy;
+
+  const Coordinates({
+    required this.latitude,
+    required this.longitude,
+    this.accuracy,
+  });
+}
+
+/// Hasil validasi geofence
+class GeofenceResult {
+  final bool isInRadius;
+  final int distance; // jarak dalam meter
+  final Coordinates coordinates;
+
+  const GeofenceResult({
+    required this.isInRadius,
+    required this.distance,
+    required this.coordinates,
+  });
 }

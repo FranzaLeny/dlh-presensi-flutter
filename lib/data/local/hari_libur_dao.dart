@@ -51,6 +51,25 @@ class HariLiburDao {
     return HariLibur.fromRow(rows.first);
   }
 
+  /// Sinkronisasi dengan menghapus semua lalu menimpa (atomic)
+  static Future<void> replaceBulk(List<HariLibur> items) async {
+    final db = await getDatabase();
+    await db.transaction((txn) async {
+      await txn.delete('hari_libur');
+      
+      if (items.isEmpty) return;
+      final batch = txn.batch();
+      for (final item in items) {
+        batch.insert(
+          'hari_libur',
+          item.toRow(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
   /// Hapus semua hari libur
   static Future<void> clear() async {
     final db = await getDatabase();

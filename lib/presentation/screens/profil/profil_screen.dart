@@ -223,7 +223,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
     setState(() => _isSyncingAllExceptPegawai = true);
     try {
       final skpdId = _pegawai?.skpdId;
-      await runSyncExceptPegawai(skpdId: skpdId);
+      await runFullSync(skpdId: skpdId);
       final pengaturan = await SettingsDao.getFirst();
       if (mounted) {
         setState(() {

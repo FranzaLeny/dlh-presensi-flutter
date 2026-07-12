@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
+import '../../../core/utils/error_utils.dart';
 import '../../../services/auth_service.dart';
 
 class LupaPasswordScreen extends StatefulWidget {
@@ -48,15 +48,10 @@ class _LupaPasswordScreenState extends State<LupaPasswordScreen> {
           const SnackBar(content: Text('OTP telah dikirim ke email Anda')),
         );
       }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _showError(e.response?.data?['message'] ?? 'Gagal mengirim OTP');
-      }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showError('Terjadi kesalahan. Silakan coba lagi.');
+        _showError(getErrorMessage(e));
       }
     }
   }
@@ -90,15 +85,10 @@ class _LupaPasswordScreenState extends State<LupaPasswordScreen> {
         );
         context.go('/login');
       }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        _showError(e.response?.data?['message'] ?? 'Gagal mereset password');
-      }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showError('Terjadi kesalahan. Silakan coba lagi.');
+        _showError(getErrorMessage(e));
       }
     }
   }

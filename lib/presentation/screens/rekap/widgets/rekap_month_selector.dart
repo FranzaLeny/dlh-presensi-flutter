@@ -6,6 +6,9 @@ class RekapMonthSelector extends StatelessWidget {
   final Color textColor;
   final VoidCallback onPrevMonth;
   final VoidCallback onNextMonth;
+  final VoidCallback? onSync;
+  final bool isSyncing;
+  final bool isDark;
 
   static const List<String> _months = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -19,6 +22,9 @@ class RekapMonthSelector extends StatelessWidget {
     required this.textColor,
     required this.onPrevMonth,
     required this.onNextMonth,
+    this.onSync,
+    this.isSyncing = false,
+    this.isDark = false,
   });
 
   @override
@@ -40,9 +46,32 @@ class RekapMonthSelector extends StatelessWidget {
               color: textColor,
             ),
           ),
-          IconButton(
-            onPressed: onNextMonth,
-            icon: Icon(Icons.chevron_right, color: textColor),
+          Row(
+            children: [
+              IconButton(
+                onPressed: onNextMonth,
+                icon: Icon(Icons.chevron_right, color: textColor),
+              ),
+              if (onSync != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isDark ? Colors.white24 : Colors.black12,
+                      width: 1.5,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.sync, color: textColor),
+                    tooltip: 'Sinkronisasi Bulan Ini',
+                    onPressed: isSyncing ? null : onSync,
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
