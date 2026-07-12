@@ -4,6 +4,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/pegawai.dart';
@@ -13,6 +15,7 @@ import '../../../data/local/presensi_dao.dart';
 import '../../../data/local/hari_libur_dao.dart';
 import '../../../data/local/absen_dao.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/storage_service.dart';
 import '../../../services/sync_engine.dart';
 import 'widgets/profil_action_buttons.dart';
 import 'widgets/profil_header_card.dart';
@@ -36,6 +39,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
   bool _isSyncingAbsen = false;
   bool _isSyncingAllExceptPegawai = false;
   bool _loggingOut = false;
+  bool _isUploadingPhoto = false;
 
   @override
   void initState() {
@@ -291,6 +295,52 @@ class _ProfilScreenState extends State<ProfilScreen> {
     }
   }
 
+  Future<void> _handleEditPhoto() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    
+    if (pickedFile == null) return;
+    final file = File(pickedFile.path);
+
+    setState(() => _isUploadingPhoto = true);
+    String? key;
+    try {
+      // 1. Upload ke Storage
+      key = await StorageService.uploadProfilePhoto(file);
+      
+      // 2. Update Session (API)
+      await AuthService.updateProfilePhoto(key);
+
+      // 3. Update foto lokal secara manual (agar UI langsung refresh tanpa perlu mempedulikan key yg sama dari server)
+      await AuthService.setLocalProfilePhoto(file.path);
+
+      // 4. Tarik data profil baru agar sync ke lokal (jika ada data text lain yg berubah)
+      await _handleSyncPegawai();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto profil berhasil diubah'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      debugPrint('Gagal upload foto profil: $e');
+      // Clean up orphaned file if upload succeeded but update profile failed
+      if (key != null) {
+        try {
+          await StorageService.deleteFile(entity: 'profile', key: key);
+        } catch (_) {}
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengubah foto: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -329,7 +379,11 @@ class _ProfilScreenState extends State<ProfilScreen> {
           child: Column(
             children: [
               // ── Avatar & Name ─────────────────────────────────
-              ProfilHeaderCard(pegawai: _pegawai),
+              ProfilHeaderCard(
+                pegawai: _pegawai,
+                isUploading: _isUploadingPhoto,
+                onTapEdit: _handleEditPhoto,
+              ),
               const SizedBox(height: 16),
 
               // ── Detail Info ───────────────────────────────────

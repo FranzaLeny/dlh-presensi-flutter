@@ -94,17 +94,19 @@ Future<({int synced, int errors})> _syncLogBatch(List<PresensiLog> logsToSync) a
     }
 
     // 2. Upload foto untuk setiap log yang perlu
+    final idsToSync = <String>{};
     for (final log in logsToSync) {
       try {
         await uploadPendingPhotos(log);
-      } catch (_) {
+        idsToSync.add(log.id);
+      } catch (e) {
+        debugPrint('Gagal upload foto untuk log ${log.id}: $e');
         errorCount++;
       }
     }
 
     // 3. Ambil log terbaru dari lokal (karena foto URL mungkin telah di-update)
     final allUnsynced = await PresensiDao.getUnsynced();
-    final idsToSync = logsToSync.map((l) => l.id).toSet();
     final refreshedLogs = allUnsynced.where((l) => idsToSync.contains(l.id)).toList();
 
     if (refreshedLogs.isEmpty) return (synced: 0, errors: errorCount);

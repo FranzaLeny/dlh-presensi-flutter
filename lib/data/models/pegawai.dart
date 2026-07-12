@@ -24,12 +24,16 @@ class Pegawai {
   final String? tanggalAsn;
   final String skpdId;
   final String namaSkpd;
+  final String? userId;
+  final String? username;
+  final String? image;
+  final String? localFotoPath;
   final int status;
   final int isTtd;
-  final String createdAt;
-  final String updatedAt;
-  final String createdBy;
-  final String updatedBy;
+  final String? createdAt;
+  final String? updatedAt;
+  final String? createdBy;
+  final String? updatedBy;
   final PangkatGolongan? pangkatGolongan;
   final Skpd? skpd;
 
@@ -54,12 +58,16 @@ class Pegawai {
     this.tanggalAsn,
     required this.skpdId,
     required this.namaSkpd,
+    this.userId,
+    this.username,
+    this.image,
+    this.localFotoPath,
     required this.status,
     this.isTtd = 0,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.createdBy,
-    required this.updatedBy,
+    this.createdAt,
+    this.updatedAt,
+    this.createdBy,
+    this.updatedBy,
     this.pangkatGolongan,
     this.skpd,
   });
@@ -86,12 +94,16 @@ class Pegawai {
       tanggalAsn: json['tanggalAsn'] as String?,
       skpdId: json['skpdId'] as String,
       namaSkpd: json['namaSkpd'] as String,
+      userId: json['userId'] as String?,
+      username: json['username'] as String?,
+      image: json['image'] as String?,
+      localFotoPath: json['localFotoPath'] as String?,
       status: (json['status'] as num).toInt(),
       isTtd: (json['isTtd'] as num?)?.toInt() ?? 0,
-      createdAt: json['createdAt'] as String,
-      updatedAt: json['updatedAt'] as String,
-      createdBy: json['createdBy'] as String,
-      updatedBy: json['updatedBy'] as String,
+      createdAt: json['createdAt'] as String?,
+      updatedAt: json['updatedAt'] as String?,
+      createdBy: json['createdBy'] as String?,
+      updatedBy: json['updatedBy'] as String?,
       pangkatGolongan: json['pangkatGolongan'] != null
           ? PangkatGolongan.fromJson(
               json['pangkatGolongan'] as Map<String, dynamic>)
@@ -112,6 +124,10 @@ class Pegawai {
         'nip': nip,
         'skpdId': skpdId,
         'namaSkpd': namaSkpd,
+        'userId': userId,
+        'username': username,
+        'image': image,
+        'localFotoPath': localFotoPath,
         'status': status,
         'createdAt': createdAt,
         'updatedAt': updatedAt,

@@ -141,7 +141,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     passwordController: _passwordController,
                     onLogin: _handleLogin,
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+                  
+                  // ── Lupa Password Link ──────────────────────────
+                  TextButton(
+                    onPressed: () => context.push('/lupa-password'),
+                    child: const Text(
+                      'Lupa Password?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   // ── Footer ──────────────────────────────────────
                   Text(

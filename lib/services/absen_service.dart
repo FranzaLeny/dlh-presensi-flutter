@@ -4,48 +4,37 @@
 
 import 'dart:io';
 
-import 'package:dio/dio.dart';
-
 import '../data/models/presensi_absen.dart';
 import '../data/remote/api_client.dart';
+import 'storage_service.dart';
 
 class AbsenService {
   AbsenService._();
 
-  /// Upload dokumen lampiran via presigned URL
+  /// Upload dokumen lampiran via presigned POST URL (cara baru).
   static Future<String> uploadDokumen(
     String localPath,
     String tipePresensi, // 'absen'
     String tanggal, // YYYY-MM-DD
     String contentType, // e.g. 'image/jpeg', 'application/pdf'
   ) async {
-    // 1. Minta presigned URL dari backend
-    final response = await apiClient.post(
-      '/umum/presensi/presigned-url',
-      data: {
-        'contentType': contentType,
-        'tipePresensi': tipePresensi,
-        'tanggal': tanggal,
-      },
-    );
-
-    final data = response.data;
-    final uploadUrl = data['uploadUrl'] as String;
-    final publicUrl = data['publicUrl'] as String;
-
-    // 2. Upload langsung ke Cloud Storage
     final file = File(localPath);
-    final bytes = await file.readAsBytes();
 
-    await Dio().put(
-      uploadUrl,
-      data: Stream.fromIterable(bytes.map((e) => [e])),
-      options: Options(
-        headers: {'Content-Type': contentType, 'Content-Length': bytes.length},
-      ),
+    // Validasi: cek file size sebelum upload
+    final fileSize = await file.length();
+    if (fileSize > 2 * 1024 * 1024) {
+      throw Exception('Ukuran file melebihi batas maksimum 2 MB.');
+    }
+
+    final key = await StorageService.uploadToStorage(
+      entity: 'presensi',
+      file: file,
+      contentType: contentType,
+      tanggal: tanggal,
+      tipePresensi: tipePresensi,
     );
 
-    return publicUrl;
+    return key; // Return key (bukan publicUrl)
   }
 
   /// Mengajukan absen baru (POST /umum/presensi/absen)

@@ -12,6 +12,9 @@ import '../screens/rekap/rekap_screen.dart';
 import '../screens/profil/profil_screen.dart';
 import '../screens/absen/absen_screen.dart';
 import '../screens/absen/absen_form_screen.dart';
+import '../screens/pengaturan/ubah_password_screen.dart';
+import '../screens/pengaturan/ubah_email_screen.dart';
+import '../screens/auth/lupa_password_screen.dart';
 import '../widgets/app_shell.dart';
 import '../../services/auth_service.dart';
 import '../../data/models/presensi_absen.dart';
@@ -42,6 +45,18 @@ final GoRouter appRouter = GoRouter(
         final initialAbsen = state.extra as List<PresensiAbsen>?;
         return AbsenFormScreen(initialAbsenList: initialAbsen);
       },
+    ),
+    GoRoute(
+      path: '/ubah-password',
+      builder: (context, state) => const UbahPasswordScreen(),
+    ),
+    GoRoute(
+      path: '/ubah-email',
+      builder: (context, state) => const UbahEmailScreen(),
+    ),
+    GoRoute(
+      path: '/lupa-password',
+      builder: (context, state) => const LupaPasswordScreen(),
     ),
     ShellRoute(
       navigatorKey: _shellNavigatorKey,

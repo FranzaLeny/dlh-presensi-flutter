@@ -9,10 +9,14 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'package:path_provider/path_provider.dart';
+import 'package:dio/dio.dart';
+
 import '../core/config/env.dart';
 import '../core/utils/crypto_utils.dart';
 import '../data/models/pegawai.dart';
 import '../data/remote/api_client.dart';
+import 'storage_service.dart';
 
 const _storage = FlutterSecureStorage();
 
@@ -41,14 +45,11 @@ class AuthService {
       await _storage.write(key: _tokenKey, value: token as String);
     }
 
-    // Ambil data pegawai dari server
-    final pegawai = await fetchMyPegawai();
+    // Ambil data pegawai dari server dan sinkronisasi (download foto)
+    final pegawai = await syncPegawai();
     if (pegawai == null) {
       throw Exception('Data pegawai tidak ditemukan untuk akun ini');
     }
-
-    // Simpan data pegawai ke SecureStore
-    await _storage.write(key: _pegawaiKey, value: jsonEncode(pegawai.toJson()));
 
     // Register device API key
     try {
@@ -121,6 +122,64 @@ class AuthService {
     }
   }
 
+  // ── Auth: Ubah Password ───────────────────────────────────────────────
+  static Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    bool revokeOtherSessions = true,
+  }) async {
+    await apiClient.post('/auth/change-password', data: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+      'revokeOtherSessions': revokeOtherSessions,
+    });
+  }
+
+  // ── Auth: Ubah Email (Kirim OTP) ──────────────────────────────────────
+  static Future<void> sendChangeEmailOtp(String newEmail) async {
+    await apiClient.post('/auth/email-otp/send-verification-otp', data: {
+      'email': newEmail,
+      'type': 'change-email',
+    });
+  }
+
+  // ── Auth: Ubah Email (Verifikasi OTP) ─────────────────────────────────
+  static Future<void> verifyChangeEmailOtp({
+    required String newEmail,
+    required String otp,
+  }) async {
+    await apiClient.post('/auth/email-otp/verify-email', data: {
+      'email': newEmail,
+      'otp': otp,
+    });
+  }
+
+  // ── Auth: Lupa Password (Kirim OTP) ───────────────────────────────────
+  static Future<void> sendForgetPasswordOtp(String email) async {
+    final dio = Dio(BaseOptions(
+      baseUrl: AppConfig.apiUrl,
+      headers: {'Content-Type': 'application/json'},
+    ));
+    await dio.post('/auth/forget-password', data: {
+      'email': email,
+    });
+  }
+
+  // ── Auth: Reset Password ──────────────────────────────────────────────
+  static Future<void> resetPassword({
+    required String newPassword,
+    required String otp,
+  }) async {
+    final dio = Dio(BaseOptions(
+      baseUrl: AppConfig.apiUrl,
+      headers: {'Content-Type': 'application/json'},
+    ));
+    await dio.post('/auth/reset-password', data: {
+      'newPassword': newPassword,
+      'otp': otp,
+    });
+  }
+
   // ── Ambil API key untuk dikirim di header request ───────────────────────
   static Future<String?> getDeviceApiKey() async {
     return _storage.read(key: _apiKeyKey);
@@ -180,19 +239,169 @@ class AuthService {
   static Future<Pegawai?> fetchMyPegawai() async {
     try {
       final response = await apiClient.get('/auth/me/pegawai');
-      return Pegawai.fromJson(response.data as Map<String, dynamic>);
-    } catch (_) {
+      final Map<String, dynamic> body = response.data;
+      final payload = body.containsKey('data') ? body['data'] as Map<String, dynamic> : body;
+      return Pegawai.fromJson(payload);
+    } catch (e) {
+      debugPrint('Error fetchMyPegawai: $e');
       return null;
     }
   }
 
   // ── Sync data pegawai dengan menyimpannya ke SecureStore ──────────────────
   static Future<Pegawai?> syncPegawai() async {
-    final pegawai = await fetchMyPegawai();
-    if (pegawai != null) {
-      await _storage.write(key: _pegawaiKey, value: jsonEncode(pegawai.toJson()));
+    final oldPegawai = await getPegawai();
+    Pegawai? newPegawai = await fetchMyPegawai();
+
+    if (newPegawai != null) {
+      String? localFotoPath = oldPegawai?.localFotoPath;
+
+      // Cek apakah foto profil berbeda (key berbeda) ATAU data profil baru saja di-update (bisa jadi fotonya yang di-update admin)
+      bool isImageChanged = newPegawai.image != oldPegawai?.image;
+      bool isProfileUpdated = newPegawai.updatedAt != oldPegawai?.updatedAt;
+      bool isLocalFileMissing = true;
+      
+      if (oldPegawai?.localFotoPath != null) {
+        isLocalFileMissing = !(await File(oldPegawai!.localFotoPath!).exists());
+      }
+
+      if (newPegawai.image != null && (isImageChanged || isProfileUpdated || isLocalFileMissing)) {
+        try {
+          final String key = newPegawai.image!;
+          final publicUrl = await StorageService.getPreviewUrl(
+            entity: 'profile',
+            key: key,
+          );
+          
+          String downloadUrl = publicUrl;
+          if (!publicUrl.startsWith('http')) {
+            downloadUrl = AppConfig.apiUrl + publicUrl;
+          }
+          
+          final dir = await getApplicationDocumentsDirectory();
+          final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+          final savedPath = '${dir.path}/$fileName';
+          
+          await Dio().download(downloadUrl, savedPath);
+          localFotoPath = savedPath;
+          
+          // Hapus foto lama jika ada
+          if (oldPegawai?.localFotoPath != null) {
+            final oldFile = File(oldPegawai!.localFotoPath!);
+            if (await oldFile.exists()) {
+              await oldFile.delete();
+            }
+          }
+        } catch (e) {
+          debugPrint('Error syncing profile image: $e');
+        }
+      }
+
+      // Pertahankan localFotoPath (jika didownload atau tidak berubah)
+      newPegawai = Pegawai(
+        id: newPegawai.id,
+        instansi: newPegawai.instansi,
+        jenisPegawai: newPegawai.jenisPegawai,
+        jenisKelamin: newPegawai.jenisKelamin,
+        nama: newPegawai.nama,
+        namaTanpaGelar: newPegawai.namaTanpaGelar,
+        nip: newPegawai.nip,
+        gelarBelakang: newPegawai.gelarBelakang,
+        gelarDepan: newPegawai.gelarDepan,
+        nik: newPegawai.nik,
+        alamat: newPegawai.alamat,
+        jabatan: newPegawai.jabatan,
+        kodePangkatGolongan: newPegawai.kodePangkatGolongan,
+        eselon: newPegawai.eselon,
+        isAsn: newPegawai.isAsn,
+        tempatLahir: newPegawai.tempatLahir,
+        tanggalLahir: newPegawai.tanggalLahir,
+        tanggalAsn: newPegawai.tanggalAsn,
+        skpdId: newPegawai.skpdId,
+        namaSkpd: newPegawai.namaSkpd,
+        userId: newPegawai.userId,
+        username: newPegawai.username,
+        image: newPegawai.image,
+        localFotoPath: localFotoPath,
+        status: newPegawai.status,
+        isTtd: newPegawai.isTtd,
+        createdAt: newPegawai.createdAt,
+        updatedAt: newPegawai.updatedAt,
+        createdBy: newPegawai.createdBy,
+        updatedBy: newPegawai.updatedBy,
+        pangkatGolongan: newPegawai.pangkatGolongan,
+        skpd: newPegawai.skpd,
+      );
+
+      await _storage.write(key: _pegawaiKey, value: jsonEncode(newPegawai.toJson()));
     }
-    return pegawai;
+    return newPegawai;
+  }
+
+  // ── Auth: Ubah Foto Profil (Update Session) ─────────────────────────
+  static Future<void> updateProfilePhoto(String key) async {
+    await apiClient.post('/auth/update-user', data: {
+      'image': key,
+    });
+  }
+
+  // ── Manual Update Local Foto Path (untuk bypass download) ─────────────
+  static Future<void> setLocalProfilePhoto(String filePath) async {
+    final oldPegawai = await getPegawai();
+    if (oldPegawai == null) return;
+    
+    // Kita pindahkan/salin foto yang baru dipilih ke path lokal yang unik
+    // agar Image.file/FileImage merefresh cache-nya karena nama filenya baru.
+    final dir = await getApplicationDocumentsDirectory();
+    final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final savedPath = '${dir.path}/$fileName';
+    
+    await File(filePath).copy(savedPath);
+
+    // Hapus foto lama jika ada
+    if (oldPegawai.localFotoPath != null) {
+      final oldFile = File(oldPegawai.localFotoPath!);
+      if (await oldFile.exists()) {
+        await oldFile.delete();
+      }
+    }
+
+    final newPegawai = Pegawai(
+      id: oldPegawai.id,
+      instansi: oldPegawai.instansi,
+      jenisPegawai: oldPegawai.jenisPegawai,
+      jenisKelamin: oldPegawai.jenisKelamin,
+      nama: oldPegawai.nama,
+      namaTanpaGelar: oldPegawai.namaTanpaGelar,
+      nip: oldPegawai.nip,
+      gelarBelakang: oldPegawai.gelarBelakang,
+      gelarDepan: oldPegawai.gelarDepan,
+      nik: oldPegawai.nik,
+      alamat: oldPegawai.alamat,
+      jabatan: oldPegawai.jabatan,
+      kodePangkatGolongan: oldPegawai.kodePangkatGolongan,
+      eselon: oldPegawai.eselon,
+      isAsn: oldPegawai.isAsn,
+      tempatLahir: oldPegawai.tempatLahir,
+      tanggalLahir: oldPegawai.tanggalLahir,
+      tanggalAsn: oldPegawai.tanggalAsn,
+      skpdId: oldPegawai.skpdId,
+      namaSkpd: oldPegawai.namaSkpd,
+      userId: oldPegawai.userId,
+      username: oldPegawai.username,
+      image: oldPegawai.image,
+      localFotoPath: savedPath,
+      status: oldPegawai.status,
+      isTtd: oldPegawai.isTtd,
+      createdAt: oldPegawai.createdAt,
+      updatedAt: oldPegawai.updatedAt,
+      createdBy: oldPegawai.createdBy,
+      updatedBy: oldPegawai.updatedBy,
+      pangkatGolongan: oldPegawai.pangkatGolongan,
+      skpd: oldPegawai.skpd,
+    );
+
+    await _storage.write(key: _pegawaiKey, value: jsonEncode(newPegawai.toJson()));
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────

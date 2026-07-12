@@ -1,19 +1,23 @@
 import 'dart:io';
-import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../../data/local/presensi_dao.dart';
 import '../../data/models/presensi_log.dart';
-import '../../data/models/sync_response.dart';
-import '../../data/remote/api_client.dart';
+import '../storage_service.dart';
 
 /// Upload foto yang pending untuk sebuah log
 Future<void> uploadPendingPhotos(PresensiLog log) async {
   if (log.isLuarRadius > 0 && log.fotoPath != null && log.fotoUrl == null) {
-    final url = await uploadFoto(
-      log.fotoPath!,
-      log.tipe.toDbString(),
-      log.tanggal,
-    );
-    await PresensiDao.updateFotoUrl(log.id, url);
+    try {
+      final url = await uploadFoto(
+        log.fotoPath!,
+        log.tipe.toDbString(),
+        log.tanggal,
+      );
+      await PresensiDao.updateFotoUrl(log.id, url);
+    } catch (e) {
+      debugPrint('Error uploading photo for log ${log.id}: $e');
+      rethrow;
+    }
   }
 }
 
@@ -23,32 +27,26 @@ Future<String> uploadFoto(
   String tipe,
   String tanggal,
 ) async {
-  // 1. Minta presigned URL dari backend
-  final response = await apiClient.post(
-    '/umum/presensi/presigned-url',
-    data: {
-      'contentType': 'image/jpeg',
-      'tipePresensi': tipe,
-      'tanggal': tanggal,
-    },
-  );
-
-  final presigned = PresignedUrlResponse.fromJson(
-    response.data as Map<String, dynamic>,
-  );
-
-  // 2. Upload langsung ke Cloud Storage
   final file = File(localPath);
-  final bytes = await file.readAsBytes();
+  final fileSize = await file.length();
+  if (fileSize > 2 * 1024 * 1024) {
+    throw Exception('Ukuran file melebihi batas maksimum 2 MB.');
+  }
 
-  await Dio().put(
-    presigned.uploadUrl,
-    data: Stream.fromIterable(bytes.map((e) => [e])),
-    options: Options(
-      headers: {'Content-Type': 'image/jpeg', 'Content-Length': bytes.length},
-    ),
+  final key = await StorageService.uploadToStorage(
+    entity: 'presensi',
+    file: file,
+    contentType: 'image/jpeg',
+    tanggal: tanggal,
+    tipePresensi: tipe,
   );
 
-  // 3. Return public URL
-  return presigned.publicUrl;
+  // Hapus file lokal karena sudah tidak dibutuhkan setelah upload (sesuai req: di lokal tidak perlu menyimpan file image yang sudah tersingron)
+  try {
+    if (await file.exists()) {
+      await file.delete();
+    }
+  } catch (_) {}
+
+  return key; // Return key, bukan publicUrl
 }

@@ -11,6 +11,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/presensi_absen.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/absen_service.dart';
+import '../../../services/storage_service.dart';
 import '../../../core/utils/error_utils.dart';
 import 'widgets/absen_keterangan_section.dart';
 import 'widgets/absen_type_section.dart';
@@ -103,22 +104,32 @@ class _AbsenFormScreenState extends State<AbsenFormScreen> {
       }
 
       // 2. Send API request
-      if (_isEditMode) {
-        final id = widget.initialAbsenList!.first.id;
-        await AbsenService.updateAbsen(
-          id,
-          keterangan: _keteranganController.text,
-          dokumenUrl: uploadUrl,
-        );
-      } else {
-        // Create mode
-        await AbsenService.createAbsen(
-          pegawaiId: pegawai.id,
-          tanggal: _selectedDates,
-          tipe: _tipe,
-          keterangan: _keteranganController.text.isNotEmpty ? _keteranganController.text : null,
-          dokumenUrl: uploadUrl,
-        );
+      try {
+        if (_isEditMode) {
+          final id = widget.initialAbsenList!.first.id;
+          await AbsenService.updateAbsen(
+            id,
+            keterangan: _keteranganController.text,
+            dokumenUrl: uploadUrl,
+          );
+        } else {
+          // Create mode
+          await AbsenService.createAbsen(
+            pegawaiId: pegawai.id,
+            tanggal: _selectedDates,
+            tipe: _tipe,
+            keterangan: _keteranganController.text.isNotEmpty ? _keteranganController.text : null,
+            dokumenUrl: uploadUrl,
+          );
+        }
+      } catch (apiError) {
+        // Jika simpan data ke API gagal, dan kita baru saja upload file baru, hapus file dari server
+        if (uploadUrl != null && uploadUrl != _dokumenUrl && _localAttachmentPath != null) {
+          try {
+            await StorageService.deleteFile(entity: 'presensi', key: uploadUrl);
+          } catch (_) {}
+        }
+        rethrow;
       }
 
       if (mounted) {

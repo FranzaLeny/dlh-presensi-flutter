@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 
 class ProfilActionButtons extends StatelessWidget {
@@ -28,6 +29,50 @@ class ProfilActionButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // ── Ubah Password Button ──────────────────────────
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => context.push('/ubah-password'),
+            icon: const Icon(Icons.lock_reset_rounded),
+            label: const Text(
+              'Ubah Password',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 1),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // ── Ubah Email Button ─────────────────────────────
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => context.push('/ubah-email'),
+            icon: const Icon(Icons.email_rounded),
+            label: const Text(
+              'Ubah Email',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary, width: 1),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+
         // ── Sync Hari Libur Button ────────────────────────
         SizedBox(
           width: double.infinity,
