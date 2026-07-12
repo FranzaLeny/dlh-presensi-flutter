@@ -74,36 +74,36 @@ class Pegawai {
 
   factory Pegawai.fromJson(Map<String, dynamic> json) {
     return Pegawai(
-      id: json['id'] as String,
-      instansi: json['instansi'] as String,
-      jenisPegawai: json['jenisPegawai'] as String,
-      jenisKelamin: json['jenisKelamin'] as String,
-      nama: json['nama'] as String,
-      namaTanpaGelar: json['namaTanpaGelar'] as String,
-      nip: json['nip'] as String,
-      gelarBelakang: json['gelarBelakang'] as String?,
-      gelarDepan: json['gelarDepan'] as String?,
-      nik: json['nik'] as String?,
-      alamat: json['alamat'] as String?,
-      jabatan: json['jabatan'] as String?,
-      kodePangkatGolongan: json['kodePangkatGolongan'] as String?,
+      id: json['id']?.toString() ?? '',
+      instansi: json['instansi']?.toString() ?? '',
+      jenisPegawai: json['jenisPegawai']?.toString() ?? '',
+      jenisKelamin: json['jenisKelamin']?.toString() ?? '',
+      nama: json['nama']?.toString() ?? '',
+      namaTanpaGelar: json['namaTanpaGelar']?.toString() ?? '',
+      nip: json['nip']?.toString() ?? '',
+      gelarBelakang: json['gelarBelakang']?.toString(),
+      gelarDepan: json['gelarDepan']?.toString(),
+      nik: json['nik']?.toString(),
+      alamat: json['alamat']?.toString(),
+      jabatan: json['jabatan']?.toString(),
+      kodePangkatGolongan: json['kodePangkatGolongan']?.toString(),
       eselon: (json['eselon'] as num?)?.toInt(),
       isAsn: (json['isAsn'] as num?)?.toInt() ?? 0,
-      tempatLahir: json['tempatLahir'] as String?,
-      tanggalLahir: json['tanggalLahir'] as String?,
-      tanggalAsn: json['tanggalAsn'] as String?,
-      skpdId: json['skpdId'] as String,
-      namaSkpd: json['namaSkpd'] as String,
-      userId: json['userId'] as String?,
-      username: json['username'] as String?,
-      image: json['image'] as String?,
-      localFotoPath: json['localFotoPath'] as String?,
-      status: (json['status'] as num).toInt(),
+      tempatLahir: json['tempatLahir']?.toString(),
+      tanggalLahir: json['tanggalLahir']?.toString(),
+      tanggalAsn: json['tanggalAsn']?.toString(),
+      skpdId: json['skpdId']?.toString() ?? '',
+      namaSkpd: json['namaSkpd']?.toString() ?? '',
+      userId: json['userId']?.toString(),
+      username: json['username']?.toString(),
+      image: json['image']?.toString(),
+      localFotoPath: json['localFotoPath']?.toString(),
+      status: (json['status'] as num?)?.toInt() ?? 1,
       isTtd: (json['isTtd'] as num?)?.toInt() ?? 0,
-      createdAt: json['createdAt'] as String?,
-      updatedAt: json['updatedAt'] as String?,
-      createdBy: json['createdBy'] as String?,
-      updatedBy: json['updatedBy'] as String?,
+      createdAt: json['createdAt']?.toString(),
+      updatedAt: json['updatedAt']?.toString(),
+      createdBy: json['createdBy']?.toString(),
+      updatedBy: json['updatedBy']?.toString(),
       pangkatGolongan: json['pangkatGolongan'] != null
           ? PangkatGolongan.fromJson(
               json['pangkatGolongan'] as Map<String, dynamic>)
@@ -239,12 +239,12 @@ class PangkatGolongan {
 
   factory PangkatGolongan.fromJson(Map<String, dynamic> json) {
     return PangkatGolongan(
-      kode: json['kode'] as String,
-      pangkat: json['pangkat'] as String,
-      golongan: json['golongan'] as String,
-      ruang: json['ruang'] as String,
-      status: (json['status'] as num).toInt(),
-      keterangan: json['keterangan'] as String?,
+      kode: json['kode']?.toString() ?? '',
+      pangkat: json['pangkat']?.toString() ?? '',
+      golongan: json['golongan']?.toString() ?? '',
+      ruang: json['ruang']?.toString() ?? '',
+      status: (json['status'] as num?)?.toInt() ?? 1,
+      keterangan: json['keterangan']?.toString(),
     );
   }
 
@@ -277,12 +277,12 @@ class Skpd {
 
   factory Skpd.fromJson(Map<String, dynamic> json) {
     return Skpd(
-      id: json['id'] as String,
-      kode: json['kode'] as String,
-      nama: json['nama'] as String,
-      singkatan: json['singkatan'] as String?,
-      status: (json['status'] as num).toInt(),
-      isDefault: (json['isDefault'] as num).toInt(),
+      id: json['id']?.toString() ?? '',
+      kode: json['kode']?.toString() ?? '',
+      nama: json['nama']?.toString() ?? '',
+      singkatan: json['singkatan']?.toString(),
+      status: (json['status'] as num?)?.toInt() ?? 1,
+      isDefault: (json['isDefault'] as num?)?.toInt() ?? 0,
     );
   }
 

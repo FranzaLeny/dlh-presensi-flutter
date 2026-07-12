@@ -19,9 +19,10 @@ class ProfilHeaderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: Stack(
-          children: [
+      child: Column(
+        children: [
+          Stack(
+            children: [
             Container(
               width: 120,
               height: 120,
@@ -92,7 +93,31 @@ class ProfilHeaderCard extends StatelessWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
+        const SizedBox(height: 16),
+        Text(
+          pegawai?.nama.toUpperCase() ?? 'NAMA BELUM TERSEDIA',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          pegawai != null 
+            ? 'NIP: ${pegawai!.nip ?? '-'} | ${pegawai!.jenisPegawai ?? '-'}'
+            : 'Memuat data...',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).brightness == Brightness.dark 
+                ? Colors.white70 
+                : Colors.black54,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }

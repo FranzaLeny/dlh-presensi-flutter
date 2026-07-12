@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../data/models/pengaturan_presensi.dart';
+import '../../../../services/time_service.dart';
 
 class ProfilPengaturanCard extends StatelessWidget {
   final PengaturanPresensi? pengaturan;
@@ -92,7 +93,7 @@ class ProfilPengaturanCard extends StatelessWidget {
             _InfoRow(
               label: 'Status Hari Ini',
               value: () {
-                final today = DateTime.now();
+                final today = TimeService.getWITA(DateTime.now());
                 final dayOfWeek = today.weekday % 7;
                 final override = pengaturan!.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
                 if (override != null) {
@@ -107,7 +108,7 @@ class ProfilPengaturanCard extends StatelessWidget {
             _InfoRow(
               label: 'Presensi Masuk',
               value: () {
-                final today = DateTime.now();
+                final today = TimeService.getWITA(DateTime.now());
                 final dayOfWeek = today.weekday % 7;
                 final override = pengaturan!.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
                 if (override != null) {
@@ -122,7 +123,7 @@ class ProfilPengaturanCard extends StatelessWidget {
             _InfoRow(
               label: 'Istirahat',
               value: () {
-                final today = DateTime.now();
+                final today = TimeService.getWITA(DateTime.now());
                 final dayOfWeek = today.weekday % 7;
                 final override = pengaturan!.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
                 if (override != null) {
@@ -142,7 +143,7 @@ class ProfilPengaturanCard extends StatelessWidget {
             _InfoRow(
               label: 'Presensi Pulang',
               value: () {
-                final today = DateTime.now();
+                final today = TimeService.getWITA(DateTime.now());
                 final dayOfWeek = today.weekday % 7;
                 final override = pengaturan!.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
                 if (override != null) {

@@ -9,6 +9,7 @@ import '../../core/constants/status.dart';
 import '../../core/utils/date_utils.dart' as date_utils;
 import '../../data/models/presensi_log.dart';
 import '../../data/models/pengaturan_presensi.dart';
+import '../../services/time_service.dart';
 
 class TimelineWidget extends StatelessWidget {
   final PresensiLog? masukLog;
@@ -33,13 +34,14 @@ class TimelineWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Get target times for today
-    final dayOfWeek = DateTime.now().weekday % 7; // 0 = Minggu, 6 = Sabtu
+    final witaTime = TimeService.getWITA(DateTime.now());
+    final dayOfWeek = witaTime.weekday % 7; // 0 = Minggu, 6 = Sabtu
     final override = pengaturan?.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
 
-    String jamMasuk = isLibur ? '' : (override?.jamMasuk ?? pengaturan?.jamMasuk ?? '08:00:00');
-    String jamPulang = isLibur ? '' : (override?.jamPulang ?? pengaturan?.jamPulang ?? '16:00:00');
-    String jamIstirahatMulai = isLibur ? '' : (override?.jamIstirahatMulai ?? pengaturan?.jamIstirahatMulai ?? '12:00:00');
-    String jamIstirahatSelesai = isLibur ? '' : (override?.jamIstirahatSelesai ?? pengaturan?.jamIstirahatSelesai ?? '13:00:00');
+    String jamMasuk = isLibur ? '' : (override != null ? override.jamMasuk : (pengaturan?.jamMasuk ?? '08:00:00'));
+    String jamPulang = isLibur ? '' : (override != null ? override.jamPulang : (pengaturan?.jamPulang ?? '16:00:00'));
+    String jamIstirahatMulai = isLibur ? '' : (override != null ? (override.jamIstirahatMulai ?? '') : (pengaturan?.jamIstirahatMulai ?? '12:00:00'));
+    String jamIstirahatSelesai = isLibur ? '' : (override != null ? (override.jamIstirahatSelesai ?? '') : (pengaturan?.jamIstirahatSelesai ?? '13:00:00'));
 
     // Format target times to HH:mm
     String formatTargetTime(String timeStr) {
@@ -57,6 +59,8 @@ class TimelineWidget extends StatelessWidget {
     final targetIstirahatMulai = formatTargetTime(jamIstirahatMulai);
     final targetIstirahatSelesai = formatTargetTime(jamIstirahatSelesai);
 
+    bool hasBreak = jamIstirahatMulai.isNotEmpty && jamIstirahatMulai != '-' && jamIstirahatMulai != '00:00:00' && targetIstirahatMulai != '—';
+
     final steps = [
       _TimelineStep(
         label: 'Presensi Masuk',
@@ -65,20 +69,22 @@ class TimelineWidget extends StatelessWidget {
         icon: Icons.login_rounded,
         targetTime: targetMasuk,
       ),
-      _TimelineStep(
-        label: 'Keluar Istirahat',
-        log: mulaiIstirahatLog,
-        color: AppColors.absenIstirahatMulai,
-        icon: Icons.coffee_rounded,
-        targetTime: targetIstirahatMulai,
-      ),
-      _TimelineStep(
-        label: 'Masuk Istirahat',
-        log: selesaiIstirahatLog,
-        color: AppColors.absenIstirahatSelesai,
-        icon: Icons.directions_run_rounded,
-        targetTime: targetIstirahatSelesai,
-      ),
+      if (hasBreak)
+        _TimelineStep(
+          label: 'Keluar Istirahat',
+          log: mulaiIstirahatLog,
+          color: AppColors.absenIstirahatMulai,
+          icon: Icons.coffee_rounded,
+          targetTime: targetIstirahatMulai,
+        ),
+      if (hasBreak)
+        _TimelineStep(
+          label: 'Masuk Istirahat',
+          log: selesaiIstirahatLog,
+          color: AppColors.absenIstirahatSelesai,
+          icon: Icons.directions_run_rounded,
+          targetTime: targetIstirahatSelesai,
+        ),
       _TimelineStep(
         label: 'Presensi Pulang',
         log: pulangLog,

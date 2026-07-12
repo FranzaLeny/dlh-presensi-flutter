@@ -4,6 +4,8 @@
 
 
 /// Jenis presensi
+library;
+
 import '../../core/utils/parse_utils.dart';
 
 enum TipePresensi {
@@ -111,8 +113,8 @@ class PresensiLog {
       longitude: (json['longitude'] is String)
           ? double.parse(json['longitude'] as String)
           : (json['longitude'] as num).toDouble(),
-      fotoPath: json['fotoPath'] as String?,
-      fotoUrl: json['fotoUrl'] as String?,
+      fotoPath: ((json['status'] as num?)?.toInt() == 11 || (json['status'] as num?)?.toInt() == 20) ? null : json['fotoPath'] as String?,
+      fotoUrl: ((json['status'] as num?)?.toInt() == 11 || (json['status'] as num?)?.toInt() == 20) ? null : json['fotoUrl'] as String?,
       isLuarRadius: (json['isLuarRadius'] as num?)?.toInt() ?? 0,
       status: (json['status'] as num?)?.toInt() ?? 2,
       keterangan: json['keterangan'] as String?,
@@ -133,8 +135,8 @@ class PresensiLog {
       waktu: row['waktu']?.toString() ?? '',
       latitude: parseDouble(row['latitude']),
       longitude: parseDouble(row['longitude']),
-      fotoPath: row['foto_path']?.toString(),
-      fotoUrl: row['foto_url']?.toString(),
+      fotoPath: (parseInt(row['status'], defaultValue: 2) == 11 || parseInt(row['status'], defaultValue: 2) == 20) ? null : row['foto_path']?.toString(),
+      fotoUrl: (parseInt(row['status'], defaultValue: 2) == 11 || parseInt(row['status'], defaultValue: 2) == 20) ? null : row['foto_url']?.toString(),
       isLuarRadius: parseInt(row['is_luar_radius']),
       status: parseInt(row['status'], defaultValue: 2),
       keterangan: row['keterangan']?.toString(),

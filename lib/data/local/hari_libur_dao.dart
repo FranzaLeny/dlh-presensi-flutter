@@ -38,6 +38,16 @@ class HariLiburDao {
     return rows.map(HariLibur.fromRow).toList();
   }
 
+  /// Ambil semua hari libur, urutkan paling baru
+  static Future<List<HariLibur>> getAll() async {
+    final db = await getDatabase();
+    final rows = await db.query(
+      'hari_libur',
+      orderBy: 'tanggal DESC',
+    );
+    return rows.map(HariLibur.fromRow).toList();
+  }
+
   /// Ambil hari libur berdasarkan tanggal tertentu
   static Future<HariLibur?> getByDate(String tanggal) async {
     final db = await getDatabase();

@@ -24,6 +24,45 @@ class ProfilInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<Map<String, String>> availableData = [];
+
+    if (pegawai != null) {
+      void addData(String label, String? value) {
+        if (value != null && value.trim().isNotEmpty && value != '-') {
+          availableData.add({'label': label, 'value': value.trim()});
+        }
+      }
+
+      final nama = pegawai!.namaTanpaGelar.isNotEmpty ? pegawai!.namaTanpaGelar : pegawai!.nama;
+      addData('Nama Lengkap', nama);
+      addData('NIP', pegawai!.nip);
+
+      if (pegawai!.jenisKelamin == 'L') {
+        addData('Jenis Kelamin', 'Laki-laki');
+      } else if (pegawai!.jenisKelamin == 'P') {
+        addData('Jenis Kelamin', 'Perempuan');
+      }
+
+      addData('Jenis Pegawai', pegawai!.jenisPegawai);
+      addData('Jabatan', pegawai!.jabatan);
+
+      final pg = pegawai!.pangkatGolongan;
+      if (pg != null) {
+        final pkt = pg.pangkat;
+        final gol = pg.golongan;
+        final rng = pg.ruang;
+
+        if (pkt.isNotEmpty && rng.isNotEmpty) {
+          addData('Pangkat, Gol./Ruang', '$pkt, $gol/$rng');
+        } else if (gol.isNotEmpty) {
+          addData('Golongan', gol);
+        }
+      }
+
+      addData('Instansi', pegawai!.instansi);
+      addData('SKPD', pegawai!.namaSkpd);
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -39,7 +78,7 @@ class ProfilInfoSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '📋 Data Pegawai',
+                '📋 Data Kepegawaian',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -69,34 +108,25 @@ class ProfilInfoSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          _InfoRow(
-              label: 'NIP',
-              value: pegawai?.nip ?? '-',
-              textColor: textColor,
-              subtextColor: subtextColor),
-          _InfoRow(
-              label: 'Jenis Pegawai',
-              value: pegawai?.jenisPegawai ?? '-',
-              textColor: textColor,
-              subtextColor: subtextColor),
-          _InfoRow(
-              label: 'Instansi',
-              value: pegawai?.instansi ?? '-',
-              textColor: textColor,
-              subtextColor: subtextColor),
-          _InfoRow(
-              label: 'SKPD',
-              value: pegawai?.namaSkpd ?? '-',
-              textColor: textColor,
-              subtextColor: subtextColor),
-          _InfoRow(
-              label: 'Jenis Kelamin',
-              value: pegawai?.jenisKelamin == 'L'
-                  ? 'Laki-laki'
-                  : 'Perempuan',
-              textColor: textColor,
-              subtextColor: subtextColor,
-              isLast: true),
+          if (availableData.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Data belum tersedia.',
+                style: TextStyle(color: subtextColor, fontSize: 13),
+              ),
+            )
+          else
+            ...List.generate(availableData.length, (index) {
+              final item = availableData[index];
+              return _InfoRow(
+                label: item['label']!,
+                value: item['value']!,
+                textColor: textColor,
+                subtextColor: subtextColor,
+                isLast: index == availableData.length - 1,
+              );
+            }),
         ],
       ),
     );

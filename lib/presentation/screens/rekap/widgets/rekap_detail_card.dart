@@ -4,6 +4,7 @@ import '../../../../core/constants/status.dart';
 import '../../../../core/utils/date_utils.dart' as date_utils;
 import '../../../../data/models/presensi_log.dart';
 import '../../../../data/models/presensi_absen.dart';
+import '../../../../data/models/hari_libur.dart';
 
 class RekapDetailCard extends StatelessWidget {
   final String? selectedDate;
@@ -12,6 +13,7 @@ class RekapDetailCard extends StatelessWidget {
   final double jamKerja;
   final String statusText;
   final PresensiAbsen? approvedAbsence;
+  final HariLibur? hariLibur;
   final Color textColor;
   final Color cardBg;
 
@@ -23,6 +25,7 @@ class RekapDetailCard extends StatelessWidget {
     required this.jamKerja,
     required this.statusText,
     required this.approvedAbsence,
+    this.hariLibur,
     required this.textColor,
     required this.cardBg,
   });
@@ -285,8 +288,107 @@ class RekapDetailCard extends StatelessWidget {
           ),
         ],
 
+        // ── Card Detail Hari Libur jika ada ───────────
+        if (hariLibur != null && logs.isEmpty && approvedAbsence == null) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: (hariLibur!.tipe == 'libur_nasional' ? Colors.red : Colors.orange).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    hariLibur!.tipe == 'libur_nasional' ? Icons.calendar_month_rounded : Icons.beach_access_rounded,
+                    color: hariLibur!.tipe == 'libur_nasional' ? Colors.red : Colors.orange,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hariLibur!.nama,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Keterangan: ${hariLibur!.keterangan ?? hariLibur!.tipe.replaceAll('_', ' ')}',
+                        style: TextStyle(fontSize: 12, color: textColor.withValues(alpha: 0.6)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (statusText == 'libur' && logs.isEmpty && approvedAbsence == null) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.weekend_rounded,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Libur Reguler',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Keterangan: Libur akhir pekan atau sesuai edaran jam kerja',
+                        style: TextStyle(fontSize: 12, color: textColor.withValues(alpha: 0.6)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
         // ── Log Presensi Harian ───────────────────────────
-        if (sortedLogs.isEmpty && approvedAbsence == null)
+        if (sortedLogs.isEmpty && approvedAbsence == null && hariLibur == null && statusText != 'libur')
           Center(
             child: Padding(
               padding: const EdgeInsets.all(24.0),

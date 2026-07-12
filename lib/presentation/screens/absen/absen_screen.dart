@@ -8,10 +8,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../data/local/absen_dao.dart';
+import '../../../data/local/hari_libur_dao.dart';
 import '../../../data/models/presensi_absen.dart';
+import '../../../data/models/hari_libur.dart';
 import '../../../services/sync_engine.dart';
 import 'widgets/absen_empty_state.dart';
 import 'widgets/absen_list_item.dart';
+import 'widgets/hari_libur_list_item.dart';
 
 class AbsenScreen extends StatefulWidget {
   const AbsenScreen({super.key});
@@ -22,8 +25,13 @@ class AbsenScreen extends StatefulWidget {
 
 class _AbsenScreenState extends State<AbsenScreen> {
   List<PresensiAbsen> _allAbsens = [];
+  List<HariLibur> _allLibur = [];
   bool _loading = true;
-  bool _syncing = false;
+  bool _syncingAbsen = false;
+  bool _syncingLibur = false;
+
+  int _absenLimit = 5;
+  int _liburLimit = 5;
 
   @override
   void initState() {
@@ -32,17 +40,19 @@ class _AbsenScreenState extends State<AbsenScreen> {
   }
 
   Future<void> _loadData() async {
-    final list = await AbsenDao.getAll();
+    final listAbsen = await AbsenDao.getAll();
+    final listLibur = await HariLiburDao.getAll();
     if (mounted) {
       setState(() {
-        _allAbsens = list;
+        _allAbsens = listAbsen;
+        _allLibur = listLibur;
         _loading = false;
       });
     }
   }
 
-  Future<void> _handleRefresh() async {
-    setState(() => _syncing = true);
+  Future<void> _handleRefreshAbsen() async {
+    setState(() => _syncingAbsen = true);
     try {
       await syncAbsenPegawai();
       await _loadData();
@@ -57,7 +67,28 @@ class _AbsenScreenState extends State<AbsenScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => _syncing = false);
+        setState(() => _syncingAbsen = false);
+      }
+    }
+  }
+
+  Future<void> _handleRefreshLibur() async {
+    setState(() => _syncingLibur = true);
+    try {
+      await syncHariLibur();
+      await _loadData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(getErrorMessage(e)),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _syncingLibur = false);
       }
     }
   }
@@ -84,6 +115,69 @@ class _AbsenScreenState extends State<AbsenScreen> {
     return keys;
   }
 
+  Map<String, List<HariLibur>> _getGroupedLibur() {
+    final Map<String, List<HariLibur>> grouped = {};
+    for (final item in _allLibur) {
+      grouped.putIfAbsent(item.id, () => []).add(item);
+    }
+    return grouped;
+  }
+
+  List<String> _getSortedGroupedLiburIds(Map<String, List<HariLibur>> grouped) {
+    final keys = grouped.keys.toList();
+    keys.sort((a, b) {
+      final dateA = grouped[a]!
+          .map((e) => e.tanggal)
+          .reduce((x, y) => x.compareTo(y) > 0 ? x : y);
+      final dateB = grouped[b]!
+          .map((e) => e.tanggal)
+          .reduce((x, y) => x.compareTo(y) > 0 ? x : y);
+      return dateB.compareTo(dateA); // descending
+    });
+    return keys;
+  }
+
+  Widget _buildSectionHeader({
+    required String title,
+    required bool isSyncing,
+    required VoidCallback onSync,
+    required Color textColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+          IconButton(
+            onPressed: isSyncing ? null : onSync,
+            icon: isSyncing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : const Icon(Icons.sync_rounded, size: 20),
+            tooltip: 'Sinkronisasi $title',
+            style: IconButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -96,6 +190,13 @@ class _AbsenScreenState extends State<AbsenScreen> {
     final grouped = _getGroupedAbsen();
     final sortedIds = _getSortedGroupedIds(grouped);
 
+    final groupedLibur = _getGroupedLibur();
+    final sortedLiburIds = _getSortedGroupedLiburIds(groupedLibur);
+
+    // Limit lists
+    final visibleAbsenIds = sortedIds.take(_absenLimit).toList();
+    final visibleLiburIds = sortedLiburIds.take(_liburLimit).toList();
+
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
@@ -107,19 +208,6 @@ class _AbsenScreenState extends State<AbsenScreen> {
         centerTitle: true,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: _syncing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary,
-                    ),
-                  )
-                : const Icon(Icons.refresh),
-            onPressed: _syncing ? null : _handleRefresh,
-          ),
           TextButton.icon(
             onPressed: () async {
               final result = await context.push('/absen/form');
@@ -146,35 +234,96 @@ class _AbsenScreenState extends State<AbsenScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : sortedIds.isEmpty
-          ? AbsenEmptyState(subtextColor: subtextColor)
-          : RefreshIndicator(
-              onRefresh: _handleRefresh,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: sortedIds.length,
-                itemBuilder: (context, index) {
-                  final id = sortedIds[index];
-                  final list = grouped[id]!;
-                  return AbsenListItem(
-                    items: list,
-                    isDark: isDark,
-                    textColor: textColor,
-                    subtextColor: subtextColor,
-                    onEdit: () async {
-                      final result = await context.push(
-                        '/absen/form',
-                        extra: list,
-                      );
-                      if (result == true) {
-                        _loadData();
-                      }
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // ================= ABSEN SECTION =================
+                _buildSectionHeader(
+                  title: 'Riwayat Pengajuan',
+                  isSyncing: _syncingAbsen,
+                  onSync: _handleRefreshAbsen,
+                  textColor: textColor,
+                ),
+                
+                if (sortedIds.isEmpty)
+                  AbsenEmptyState(subtextColor: subtextColor)
+                else
+                  ...visibleAbsenIds.map((id) {
+                    final list = grouped[id]!;
+                    return AbsenListItem(
+                      items: list,
+                      isDark: isDark,
+                      textColor: textColor,
+                      subtextColor: subtextColor,
+                      onEdit: () async {
+                        final result = await context.push(
+                          '/absen/form',
+                          extra: list,
+                        );
+                        if (result == true) {
+                          _loadData();
+                        }
+                      },
+                    );
+                  }),
+
+                if (sortedIds.length > _absenLimit)
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _absenLimit += 5;
+                      });
                     },
-                  );
-                },
-              ),
+                    child: const Text('Lihat Lainnya'),
+                  ),
+
+                const SizedBox(height: 24),
+                Divider(color: isDark ? Colors.white12 : Colors.black12),
+                const SizedBox(height: 24),
+
+                // ================= HARI LIBUR SECTION =================
+                _buildSectionHeader(
+                  title: 'Hari Libur & Cuti Bersama',
+                  isSyncing: _syncingLibur,
+                  onSync: _handleRefreshLibur,
+                  textColor: textColor,
+                ),
+
+                if (sortedLiburIds.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Center(
+                      child: Text(
+                        'Belum ada data hari libur.',
+                        style: TextStyle(color: subtextColor),
+                      ),
+                    ),
+                  )
+                else
+                  ...visibleLiburIds.map((id) {
+                    final list = groupedLibur[id]!;
+                    return HariLiburListItem(
+                      items: list,
+                      isDark: isDark,
+                      textColor: textColor,
+                      subtextColor: subtextColor,
+                    );
+                  }),
+
+                if (sortedLiburIds.length > _liburLimit)
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _liburLimit += 5;
+                      });
+                    },
+                    child: const Text('Lihat Lainnya'),
+                  ),
+                
+                const SizedBox(height: 40),
+              ],
             ),
     );
   }
 }
+

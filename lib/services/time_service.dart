@@ -136,9 +136,16 @@ class TimeService {
     }
   }
 
+  /// Mendapatkan DateTime bayangan dalam zona waktu WITA (UTC+8).
+  /// PENTING: Gunakan ini HANYA untuk mengambil komponen tanggal/waktu (.day, .weekday, dll).
+  /// Jangan gunakan untuk selisih waktu karena nilainya sudah bergeser 8 jam secara absolut.
+  static DateTime getWITA(DateTime date) {
+    return date.toUtc().add(const Duration(hours: 8));
+  }
+
   /// Mengonversi Date ke format tanggal lokal UTC+8 (YYYY-MM-DD)
   static String getUTC8DateString(DateTime date) {
-    final utc8Time = date.toUtc().add(const Duration(hours: 8));
+    final utc8Time = getWITA(date);
     final y = utc8Time.year.toString();
     final m = utc8Time.month.toString().padLeft(2, '0');
     final d = utc8Time.day.toString().padLeft(2, '0');
@@ -147,7 +154,7 @@ class TimeService {
 
   /// Mengonversi Date ke string ISO dengan offset UTC+8
   static String getUTC8ISOString(DateTime date) {
-    final utc8Time = date.toUtc().add(const Duration(hours: 8));
+    final utc8Time = getWITA(date);
     final y = utc8Time.year.toString();
     final mo = utc8Time.month.toString().padLeft(2, '0');
     final d = utc8Time.day.toString().padLeft(2, '0');

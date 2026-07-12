@@ -9,6 +9,7 @@ import '../../data/models/presensi_log.dart';
 import '../../data/models/sync_response.dart';
 import '../../data/remote/api_client.dart';
 import '../auth_service.dart';
+import '../storage_service.dart';
 import 'sync_upload.dart';
 
 const _storage = FlutterSecureStorage();
@@ -49,6 +50,20 @@ Future<({int synced, int errors})> syncLogsBulanan(int year, int month) async {
       final data = response.data;
       if (data != null && data['items'] is List) {
         final List<dynamic> items = data['items'];
+
+        // Hapus foto dari server untuk log yang sudah terverifikasi (status 11 atau 20)
+        for (final item in items) {
+          final status = (item['status'] as num?)?.toInt() ?? 2;
+          final key = item['fotoUrl'] as String?;
+          if ((status == 11 || status == 20) && key != null && key.isNotEmpty) {
+            try {
+              await StorageService.deleteFile(entity: 'presensi', key: key);
+            } catch (e) {
+              debugPrint('Gagal hapus foto presensi terverifikasi dari server: $e');
+            }
+          }
+        }
+
         final serverLogs = items
             .map((item) => PresensiLog.fromJson(item))
             .toList();

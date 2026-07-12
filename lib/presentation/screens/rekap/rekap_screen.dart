@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/status.dart';
+import '../../../services/time_service.dart';
 import '../../../data/local/presensi_dao.dart';
 import '../../../data/local/settings_dao.dart';
 import '../../../data/local/hari_libur_dao.dart';
@@ -28,15 +29,15 @@ class RekapScreen extends StatefulWidget {
 }
 
 class _RekapScreenState extends State<RekapScreen> {
-  int _selectedYear = DateTime.now().year;
-  int _selectedMonth = DateTime.now().month;
+  int _selectedYear = TimeService.getWITA(DateTime.now()).year;
+  int _selectedMonth = TimeService.getWITA(DateTime.now()).month;
   String? _selectedDate; // Format: YYYY-MM-DD
   List<PresensiLog> _logs = [];
   List<PengaturanPresensi> _settings = [];
   List<HariLibur> _holidays = [];
   List<PresensiAbsen> _absences = [];
-  Map<String, List<PresensiLog>> _groupedLogs = {};
-  Map<String, ({String statusText, Color statusColor, double jamKerjaEfektif, double jamKerja})> _dayStatuses = {};
+  final Map<String, List<PresensiLog>> _groupedLogs = {};
+  final Map<String, ({String statusText, Color statusColor, double jamKerjaEfektif, double jamKerja})> _dayStatuses = {};
   
   // Summary Stats
   double _monthlyJamKerjaEfektifTotal = 0.0;
@@ -53,7 +54,7 @@ class _RekapScreenState extends State<RekapScreen> {
   void initState() {
     super.initState();
     // Default select hari ini jika bulannya sama
-    final now = DateTime.now();
+    final now = TimeService.getWITA(DateTime.now());
     if (_selectedYear == now.year && _selectedMonth == now.month) {
       _selectedDate =
           '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -227,12 +228,19 @@ class _RekapScreenState extends State<RekapScreen> {
       }
     } else {
       // Hari kerja & tidak ada absen
-      final masukLog = dayLogs.where((l) => l.tipe == TipePresensi.masuk).firstOrNull;
-      final pulangLog = dayLogs.where((l) => l.tipe == TipePresensi.pulang).firstOrNull;
+      final todayStr = TimeService.getUTC8DateString(DateTime.now());
+      if (dateStr.compareTo(todayStr) > 0) {
+        // Future date, no color/status yet
+        statusText = '';
+        statusColor = Colors.transparent;
+        jamKerja = 0.0;
+      } else {
+        final masukLog = dayLogs.where((l) => l.tipe == TipePresensi.masuk).firstOrNull;
+        final pulangLog = dayLogs.where((l) => l.tipe == TipePresensi.pulang).firstOrNull;
 
-      if (masukLog != null && pulangLog != null) {
-        statusText = 'hadir';
-        statusColor = Colors.green; // hijau
+        if (masukLog != null && pulangLog != null) {
+          statusText = 'hadir';
+          statusColor = Colors.green; // hijau
 
         final tMasuk = DateTime.parse(masukLog.waktu).toUtc().add(const Duration(hours: 8));
         final tPulang = DateTime.parse(pulangLog.waktu).toUtc().add(const Duration(hours: 8));
@@ -275,6 +283,7 @@ class _RekapScreenState extends State<RekapScreen> {
         statusText = 'tidak_lengkap';
         statusColor = Colors.red; // merah
         jamKerja = 0.0;
+      }
       }
     }
 
@@ -342,7 +351,9 @@ class _RekapScreenState extends State<RekapScreen> {
       final dayLogs = _groupedLogs[dateStr] ?? [];
       
       final daily = calculateDailyHours(dateStr, dayLogs);
-      _dayStatuses[dateStr] = daily;
+      if (daily.statusText.isNotEmpty) {
+        _dayStatuses[dateStr] = daily;
+      }
 
       _monthlyJamKerjaEfektifTotal += daily.jamKerjaEfektif;
       _monthlyJamKerjaActualTotal += daily.jamKerja;
@@ -495,6 +506,9 @@ class _RekapScreenState extends State<RekapScreen> {
                           statusText: _selectedDate != null ? (_dayStatuses[_selectedDate!]?.statusText ?? '') : '',
                           approvedAbsence: _selectedDate != null
                               ? _absences.where((a) => a.tanggal == _selectedDate && (a.status == Status.approved || a.status == 20)).firstOrNull
+                              : null,
+                          hariLibur: _selectedDate != null
+                              ? _holidays.where((h) => h.tanggal == _selectedDate).firstOrNull
                               : null,
                           textColor: textColor,
                           cardBg: cardBg,

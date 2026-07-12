@@ -87,6 +87,11 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen>
         ? Colors.white.withValues(alpha: 0.5)
         : Colors.black.withValues(alpha: 0.5);
 
+    final dayOfWeek = TimeService.getWITA(currentTime).weekday % 7;
+    final override = pengaturan?.jadwalHarian?.where((j) => j.hari == dayOfWeek).firstOrNull;
+    String jamIstirahatMulai = override != null ? (override.jamIstirahatMulai ?? '') : (pengaturan?.jamIstirahatMulai ?? '');
+    bool hasBreak = jamIstirahatMulai.isNotEmpty && jamIstirahatMulai != '-' && jamIstirahatMulai != '00:00:00';
+
     return Scaffold(
       backgroundColor: bgColor,
       body: Stack(
@@ -119,6 +124,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen>
                       approvedAbsence: approvedAbsence,
                       isTodayLibur: isTodayLibur,
                       liburNama: liburNama,
+                      hasBreak: hasBreak,
                       loading: loading,
                       cardBg: cardBg,
                       textColor: textColor,

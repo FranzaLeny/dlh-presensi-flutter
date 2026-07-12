@@ -14,6 +14,12 @@ import '../screens/absen/absen_screen.dart';
 import '../screens/absen/absen_form_screen.dart';
 import '../screens/pengaturan/ubah_password_screen.dart';
 import '../screens/pengaturan/ubah_email_screen.dart';
+import '../screens/pengaturan/perangkat_screen.dart';
+import '../screens/pengaturan/sesi_aktif_screen.dart';
+import '../screens/profil/data_kepegawaian_screen.dart';
+import '../screens/profil/zona_presensi_screen.dart';
+import '../screens/profil/keamanan_akun_screen.dart';
+import '../screens/profil/sinkronisasi_screen.dart';
 import '../screens/auth/lupa_password_screen.dart';
 import '../widgets/app_shell.dart';
 import '../../services/auth_service.dart';
@@ -29,8 +35,12 @@ final GoRouter appRouter = GoRouter(
   redirect: (context, state) async {
     final hasSession = await AuthService.hasValidSession();
     final isLoginRoute = state.matchedLocation == '/login';
+    final isLupaPasswordRoute = state.matchedLocation == '/lupa-password';
 
-    if (!hasSession && !isLoginRoute) return '/login';
+    // Rute publik yang boleh diakses tanpa login
+    final isPublicRoute = isLoginRoute || isLupaPasswordRoute;
+
+    if (!hasSession && !isPublicRoute) return '/login';
     if (hasSession && isLoginRoute) return '/presensi';
     return null;
   },
@@ -57,6 +67,30 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/lupa-password',
       builder: (context, state) => const LupaPasswordScreen(),
+    ),
+    GoRoute(
+      path: '/perangkat',
+      builder: (context, state) => const PerangkatScreen(),
+    ),
+    GoRoute(
+      path: '/sesi-aktif',
+      builder: (context, state) => const SesiAktifScreen(),
+    ),
+    GoRoute(
+      path: '/profil/data-kepegawaian',
+      builder: (context, state) => const DataKepegawaianScreen(),
+    ),
+    GoRoute(
+      path: '/profil/zona-presensi',
+      builder: (context, state) => const ZonaPresensiScreen(),
+    ),
+    GoRoute(
+      path: '/profil/keamanan-akun',
+      builder: (context, state) => const KeamananAkunScreen(),
+    ),
+    GoRoute(
+      path: '/profil/sinkronisasi',
+      builder: (context, state) => const SinkronisasiScreen(),
     ),
     ShellRoute(
       navigatorKey: _shellNavigatorKey,
@@ -99,6 +133,7 @@ final GoRouter appRouter = GoRouter(
 
 void setupUnauthenticatedListener() {
   remote.onUnauthenticated = () {
+    AuthService.forceClearLocalSession();
     appRouter.go('/login');
   };
 }

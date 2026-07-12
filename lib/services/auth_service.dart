@@ -145,8 +145,8 @@ class AuthService {
   // ── Auth: Ubah Email (Kirim OTP) ──────────────────────────────────────
   static Future<void> sendChangeEmailOtp(String newEmail) async {
     await apiClient.post(
-      '/auth/email-otp/send-verification-otp',
-      data: {'email': newEmail, 'type': 'change-email'},
+      '/auth/email-otp/request-email-change',
+      data: {'newEmail': newEmail},
     );
   }
 
@@ -156,8 +156,8 @@ class AuthService {
     required String otp,
   }) async {
     await apiClient.post(
-      '/auth/email-otp/verify-email',
-      data: {'email': newEmail, 'otp': otp},
+      '/auth/email-otp/change-email',
+      data: {'newEmail': newEmail, 'otp': otp},
     );
   }
 
@@ -169,11 +169,15 @@ class AuthService {
         headers: {'Content-Type': 'application/json'},
       ),
     );
-    await dio.post('/auth/forget-password', data: {'email': email});
+    await dio.post(
+      '/auth/email-otp/request-password-reset',
+      data: {'email': email},
+    );
   }
 
   // ── Auth: Reset Password ──────────────────────────────────────────────
   static Future<void> resetPassword({
+    required String email,
     required String newPassword,
     required String otp,
   }) async {
@@ -184,14 +188,18 @@ class AuthService {
       ),
     );
     await dio.post(
-      '/auth/reset-password',
-      data: {'newPassword': newPassword, 'otp': otp},
+      '/auth/email-otp/reset-password',
+      data: {'email': email, 'password': newPassword, 'otp': otp},
     );
   }
 
   // ── Ambil API key untuk dikirim di header request ───────────────────────
   static Future<String?> getDeviceApiKey() async {
     return _storage.read(key: _apiKeyKey);
+  }
+
+  static Future<String?> getDeviceApiKeyId() async {
+    return _storage.read(key: _apiKeyIdKey);
   }
 
   // ── Session token ────────────────────────────────────────────────────────
@@ -228,12 +236,66 @@ class AuthService {
     return _cachedHasSession!;
   }
 
+  static void forceClearLocalSession() {
+    _cachedHasSession = false;
+  }
+
+  // ── Auth: Kelola Perangkat (API Keys) ─────────────────────────────────
+  static Future<List<dynamic>> listMyApiKeys() async {
+    final response = await apiClient.get(
+      '/auth/api-key/list',
+      queryParameters: {'configId': 'presensi'},
+    );
+
+    if (response.data is Map && response.data['apiKeys'] != null) {
+      return response.data['apiKeys'] as List<dynamic>;
+    } else if (response.data is List) {
+      return response.data as List<dynamic>;
+    }
+    return [];
+  }
+
+  static Future<void> deleteApiKey(String keyId) async {
+    await apiClient.post(
+      '/auth/api-key/delete',
+      data: {
+        'keyId': keyId,
+        'configId': 'presensi',
+      },
+    );
+  }
+
+  // ── Auth: Manajemen Sesi (Sessions) ──────────────────────────────────
+  static Future<List<dynamic>> listSessions() async {
+    final response = await apiClient.get('/auth/sessions');
+    if (response.data is List) {
+      return response.data as List<dynamic>;
+    } else if (response.data is Map && response.data['sessions'] != null) {
+      return response.data['sessions'] as List<dynamic>;
+    }
+    return [];
+  }
+
+  static Future<void> revokeSession(String sessionToken) async {
+    await apiClient.post(
+      '/auth/session/revoke',
+      data: {'token': sessionToken},
+    );
+  }
+  
+  static Future<String?> getDeviceToken() async {
+    return await _storage.read(key: _tokenKey);
+  }
+
   // ── Logout ─────────────────────────────────────────────────────────────
   static Future<void> logout() async {
     try {
       final keyId = await _storage.read(key: _apiKeyIdKey);
       if (keyId != null) {
-        await apiClient.post('/auth/api-key/delete', data: {'keyId': keyId});
+        await apiClient.post(
+          '/auth/api-key/delete',
+          data: {'keyId': keyId, 'configId': 'presensi'},
+        );
       }
       await apiClient.post('/auth/sign-out');
     } catch (_) {}
@@ -258,7 +320,12 @@ class AuthService {
       final Map<String, dynamic> body = response.data;
       final payload = body.containsKey('data')
           ? body['data'] as Map<String, dynamic>
-          : body;
+          : body.containsKey('result')
+              ? body['result'] as Map<String, dynamic>
+              : body;
+      
+      debugPrint('PAYLOAD PEGAWAI: $payload');
+              
       return Pegawai.fromJson(payload);
     } catch (e) {
       debugPrint('Error fetchMyPegawai: $e');

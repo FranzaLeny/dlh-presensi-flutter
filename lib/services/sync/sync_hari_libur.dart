@@ -10,7 +10,11 @@ Future<void> syncHariLibur() async {
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult.contains(ConnectivityResult.none)) return;
 
-    final response = await apiClient.get('/umum/presensi/hari-libur');
+    final tahun = DateTime.now().year;
+    final response = await apiClient.get(
+      '/umum/presensi/hari-libur',
+      queryParameters: {'tahun': tahun},
+    );
     final data = response.data;
     if (data != null && data['items'] is List) {
       final List<dynamic> items = data['items'];

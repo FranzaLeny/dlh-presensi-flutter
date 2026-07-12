@@ -78,7 +78,11 @@ class _LupaPasswordScreenState extends State<LupaPasswordScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await AuthService.resetPassword(newPassword: newPassword, otp: otp);
+      await AuthService.resetPassword(
+        email: _emailController.text.trim(),
+        newPassword: newPassword,
+        otp: otp,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Password berhasil direset. Silakan login.')),

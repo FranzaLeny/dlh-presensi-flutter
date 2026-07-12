@@ -38,12 +38,12 @@ Dio _createApiClient() {
         _cachedApiKey ??= await _storage.read(key: 'device_api_key');
         if (_cachedApiKey != null) {
           options.headers['x-api-key'] = _cachedApiKey;
-        } else {
-          // 2. Bearer token fallback jika belum ada API key
-          _cachedToken ??= await _storage.read(key: 'better_auth_token');
-          if (_cachedToken != null) {
-            options.headers['Authorization'] = 'Bearer $_cachedToken';
-          }
+        }
+        
+        // 2. Bearer token untuk otentikasi sesi BetterAuth
+        _cachedToken ??= await _storage.read(key: 'better_auth_token');
+        if (_cachedToken != null) {
+          options.headers['Authorization'] = 'Bearer $_cachedToken';
         }
       } catch (err) {
         // ignore — log only

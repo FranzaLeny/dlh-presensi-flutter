@@ -13,6 +13,7 @@ class PresensiActionButtons extends StatelessWidget {
   final PresensiAbsen? approvedAbsence;
   final bool isTodayLibur;
   final String? liburNama;
+  final bool hasBreak;
   final bool loading;
   final Color cardBg;
   final Color textColor;
@@ -30,6 +31,7 @@ class PresensiActionButtons extends StatelessWidget {
     this.approvedAbsence,
     this.isTodayLibur = false,
     this.liburNama,
+    this.hasBreak = true,
     required this.loading,
     required this.cardBg,
     required this.textColor,
@@ -82,10 +84,11 @@ class PresensiActionButtons extends StatelessWidget {
       );
     }
 
-    if (masukLog != null &&
-        mulaiIstirahatLog != null &&
-        selesaiIstirahatLog != null &&
-        pulangLog != null) {
+    final bool isComplete = hasBreak 
+        ? (masukLog != null && mulaiIstirahatLog != null && selesaiIstirahatLog != null && pulangLog != null)
+        : (masukLog != null && pulangLog != null);
+
+    if (isComplete) {
       return Column(
         children: [
           Container(
@@ -109,7 +112,9 @@ class PresensiActionButtons extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Anda sudah presensi masuk, istirahat, dan pulang hari ini',
+                  hasBreak 
+                      ? 'Anda sudah presensi masuk, istirahat, dan pulang hari ini'
+                      : 'Anda sudah presensi masuk dan pulang hari ini',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: subtextColor),
                 ),
@@ -132,7 +137,7 @@ class PresensiActionButtons extends StatelessWidget {
         label: 'Presensi Masuk',
         sublabel: 'Tap untuk presensi masuk',
       );
-    } else if (mulaiIstirahatLog == null) {
+    } else if (hasBreak && mulaiIstirahatLog == null) {
       actionButton = _buildAbsenButton(
         context: context,
         jenis: TipePresensi.mulaiIstirahat,
@@ -141,7 +146,7 @@ class PresensiActionButtons extends StatelessWidget {
         label: 'Mulai Istirahat',
         sublabel: 'Tap untuk presensi keluar istirahat',
       );
-    } else if (selesaiIstirahatLog == null) {
+    } else if (hasBreak && selesaiIstirahatLog == null) {
       actionButton = _buildAbsenButton(
         context: context,
         jenis: TipePresensi.selesaiIstirahat,
