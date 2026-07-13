@@ -48,7 +48,7 @@ dependencies:
 
   # Date Formatting
   intl: ^0.20.2
-  google_mlkit_face_detection: ^0.13.2
+  google_mlkit_face_detection: ^0.14.0
   flutter_svg: ^2.0.10+1
   file_picker: 12.0.0-beta.7
   image_picker: ^1.2.3
@@ -58,21 +58,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
   android: "ic_launcher"
   ios: true
-  image_path: "assets/icon.png"
+  image_path: "assets/launcher-icon.png"
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "assets/icon.png"
-  adaptive_icon_foreground_inset: 20
+  adaptive_icon_foreground: "assets/launcher-icon.png"
   remove_alpha_ios: true
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/icon.svg
     - assets/icon.png
 
   fonts:
