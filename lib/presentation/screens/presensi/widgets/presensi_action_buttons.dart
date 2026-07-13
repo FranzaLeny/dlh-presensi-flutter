@@ -100,8 +100,23 @@ class PresensiActionButtons extends StatelessWidget {
             ),
             child: Column(
               children: [
-                const Text('✅', style: TextStyle(fontSize: 40)),
-                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (Theme.of(context).brightness == Brightness.dark 
+                            ? const Color(0xFF00E676) 
+                            : const Color(0xFF43A047)).withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_rounded,
+                    size: 36,
+                    color: Theme.of(context).brightness == Brightness.dark 
+                        ? const Color(0xFF00E676) 
+                        : const Color(0xFF2E7D32),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Text(
                   'Presensi Lengkap',
                   style: TextStyle(

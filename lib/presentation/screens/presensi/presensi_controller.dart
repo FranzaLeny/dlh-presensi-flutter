@@ -15,6 +15,7 @@ import '../../../data/local/absen_dao.dart';
 import '../../../data/local/hari_libur_dao.dart';
 import '../../../data/local/presensi_dao.dart';
 import '../../../data/local/settings_dao.dart';
+import '../../../data/models/pegawai.dart';
 import '../../../data/models/pengaturan_presensi.dart';
 import '../../../data/models/presensi_absen.dart';
 import '../../../data/models/presensi_log.dart';
@@ -28,6 +29,7 @@ import 'presensi_screen.dart';
 mixin PresensiController
     on ConsumerState<PresensiScreen>, PresensiCameraController {
   DateTime currentTime = DateTime.now();
+  Pegawai? pegawaiData;
   PengaturanPresensi? pengaturan;
   List<PresensiLog> todayLogs = [];
   PresensiAbsen? approvedAbsence;
@@ -76,6 +78,7 @@ mixin PresensiController
       // Fast Local Load
       final pegawai = await AuthService.getPegawai();
       if (pegawai == null) return;
+      pegawaiData = pegawai;
       final pegawaiId = pegawai.id;
 
       var settings = await SettingsDao.getFirst();

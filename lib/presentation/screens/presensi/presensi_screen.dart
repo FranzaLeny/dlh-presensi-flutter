@@ -12,6 +12,7 @@ import 'presensi_controller.dart';
 import 'widgets/presensi_action_buttons.dart';
 import 'widgets/presensi_camera_view.dart';
 import 'widgets/presensi_geofence_card.dart';
+import 'widgets/presensi_pegawai_card.dart';
 import 'widgets/presensi_time_card.dart';
 import 'widgets/presensi_timeline_section.dart';
 import 'widgets/time_mismatch_overlay.dart';
@@ -113,6 +114,20 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen>
                       subtextColor: subtextColor,
                     ),
                     const SizedBox(height: 16),
+
+                    // ── Pegawai Identity Card ───────────────
+                    if (pegawaiData != null)
+                      PresensiPegawaiCard(
+                        nama: pegawaiData!.nama,
+                        nip: pegawaiData!.nip,
+                        jabatan: pegawaiData!.jabatan,
+                        localFotoPath: pegawaiData!.localFotoPath,
+                        isDark: isDark,
+                        cardBg: cardBg,
+                        textColor: textColor,
+                        subtextColor: subtextColor,
+                      ),
+                    if (pegawaiData != null) const SizedBox(height: 16),
 
                     // ── Action Buttons ─────────────────────────────
                     PresensiActionButtons(
