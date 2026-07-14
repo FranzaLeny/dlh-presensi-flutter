@@ -34,12 +34,26 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build APK (Split per ABI)
+        run: flutter build apk --release --split-per-abi
 
-      - name: Upload APK Artifact
+      - name: Upload arm64-v8a APK (HP Baru 64-bit)
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: app-arm64-v8a-release-(HP-Baru)
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          retention-days: 7
+
+      - name: Upload armeabi-v7a APK (HP Lama 32-bit)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-armeabi-v7a-release-(HP-Lama)
+          path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+          retention-days: 7
+
+      - name: Upload x86_64 APK (Emulator/PC)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-x86_64-release-(Emulator)
+          path: build/app/outputs/flutter-apk/app-x86_64-release.apk
           retention-days: 7
