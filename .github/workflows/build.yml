@@ -9,7 +9,10 @@ on:
     branches:
       - main
       - master
-  workflow_dispatch: # Memungkinkan build manual dari tab Actions
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -37,23 +40,19 @@ jobs:
       - name: Build APK (Split per ABI)
         run: flutter build apk --release --split-per-abi
 
-      - name: Upload arm64-v8a APK (HP Baru 64-bit)
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-arm64-v8a-release-(HP-Baru)
-          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
-          retention-days: 7
+      - name: Ubah Nama File APK biar Jelas
+        run: |
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/dlh-presensi-HP-Baru-arm64.apk
+          mv build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/dlh-presensi-HP-Lama-arm32.apk
+          mv build/app/outputs/flutter-apk/app-x86_64-release.apk build/app/outputs/flutter-apk/dlh-presensi-Emulator-x86.apk
 
-      - name: Upload armeabi-v7a APK (HP Lama 32-bit)
-        uses: actions/upload-artifact@v4
+      - name: Publish ke Halaman Utama GitHub (Release)
+        uses: ncipollo/release-action@v1
+        if: github.event_name != 'pull_request'
         with:
-          name: app-armeabi-v7a-release-(HP-Lama)
-          path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
-          retention-days: 7
-
-      - name: Upload x86_64 APK (Emulator/PC)
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-x86_64-release-(Emulator)
-          path: build/app/outputs/flutter-apk/app-x86_64-release.apk
-          retention-days: 7
+          allowUpdates: true
+          replacesArtifacts: true
+          tag: "latest"
+          name: "Aplikasi Presensi DLH (Versi Terbaru)"
+          body: "Silakan unduh file `.apk` yang sesuai dengan perangkat Android Anda di bagian **Assets** di bawah ini.\n- Gunakan `HP-Baru` untuk Android modern.\n- Gunakan `HP-Lama` untuk Android versi lama."
+          artifacts: "build/app/outputs/flutter-apk/*.apk"
