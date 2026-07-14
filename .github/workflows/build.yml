@@ -43,6 +43,8 @@ jobs:
         run: flutter pub get
 
       - name: Build APK (Split per ABI)
+        env:
+          APP_ID_SUFFIX: .github
         run: flutter build apk --release --split-per-abi
 
       - name: Ubah Nama File APK biar Jelas
