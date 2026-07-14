@@ -34,18 +34,13 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Create .env file
-        run: |
-          echo "API_URL=${{ secrets.API_URL }}" > .env
-          echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> .env
-
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build APK (Split per ABI)
         env:
           APP_ID_SUFFIX: .github
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release --split-per-abi --dart-define=API_URL="${{ secrets.API_URL }}" --dart-define=BETTER_AUTH_URL="${{ secrets.BETTER_AUTH_URL }}"
 
       - name: Ubah Nama File APK biar Jelas
         run: |
