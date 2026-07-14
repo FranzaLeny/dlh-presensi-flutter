@@ -229,6 +229,8 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       isTakingPicture = false;
       if (mounted) setState(() => loading = false);
     }
+  }
+
   Uint8List _yuv420ToNv21(CameraImage image) {
     final int width = image.width;
     final int height = image.height;
