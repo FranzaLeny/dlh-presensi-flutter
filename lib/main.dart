@@ -10,8 +10,30 @@ import 'core/constants/app_theme.dart';
 import 'data/local/database.dart';
 import 'presentation/router/app_router.dart';
 
+import 'core/config/env.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (AppConfig.isMissingEnv) {
+    runApp(
+      const MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Text(
+                'ERROR: Konfigurasi API_URL atau BETTER_AUTH_URL tidak ditemukan. Harap pastikan secrets sudah diatur dan disuntikkan via dart-define saat build.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
 
   // Inisialisasi locale Indonesia untuk formatting tanggal
   await initializeDateFormatting('id_ID', null);

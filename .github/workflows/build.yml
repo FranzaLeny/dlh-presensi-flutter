@@ -40,7 +40,12 @@ jobs:
       - name: Build APK (Split per ABI)
         env:
           APP_ID_SUFFIX: .github
-        run: flutter build apk --release --split-per-abi --dart-define=API_URL="${{ secrets.API_URL }}" --dart-define=BETTER_AUTH_URL="${{ secrets.BETTER_AUTH_URL }}"
+          API_URL: ${{ secrets.API_URL }}
+          BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
+        run: |
+          API_URL_CLEAN=$(echo "$API_URL" | tr -d '\n' | tr -d '\r')
+          BETTER_AUTH_URL_CLEAN=$(echo "$BETTER_AUTH_URL" | tr -d '\n' | tr -d '\r')
+          flutter build apk --release --split-per-abi --dart-define="API_URL=$API_URL_CLEAN" --dart-define="BETTER_AUTH_URL=$BETTER_AUTH_URL_CLEAN"
 
       - name: Ubah Nama File APK biar Jelas
         run: |
