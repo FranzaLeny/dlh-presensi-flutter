@@ -72,7 +72,7 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
     );
     cameraController = CameraController(
       frontCamera,
-      ResolutionPreset.high,
+      ResolutionPreset.medium,
       enableAudio: false,
       imageFormatGroup: Platform.isAndroid
           ? ImageFormatGroup.nv21
