@@ -34,6 +34,11 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Create .env file
+        run: |
+          echo "API_URL=${{ secrets.API_URL }}" > .env
+          echo "BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}" >> .env
+
       - name: Install dependencies
         run: flutter pub get
 
