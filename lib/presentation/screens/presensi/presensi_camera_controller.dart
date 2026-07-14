@@ -106,11 +106,16 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
     isDetecting = true;
 
     try {
-      final WriteBuffer allBytes = WriteBuffer();
-      for (final Plane plane in image.planes) {
-        allBytes.putUint8List(plane.bytes);
+      Uint8List bytes;
+      if (Platform.isAndroid && image.format.raw == 35) {
+        bytes = _yuv420ToNv21(image);
+      } else {
+        final WriteBuffer allBytes = WriteBuffer();
+        for (final Plane plane in image.planes) {
+          allBytes.putUint8List(plane.bytes);
+        }
+        bytes = allBytes.done().buffer.asUint8List();
       }
-      final bytes = allBytes.done().buffer.asUint8List();
 
       final Size imageSize = Size(
         image.width.toDouble(),
@@ -224,5 +229,42 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       isTakingPicture = false;
       if (mounted) setState(() => loading = false);
     }
+  Uint8List _yuv420ToNv21(CameraImage image) {
+    final int width = image.width;
+    final int height = image.height;
+    final int ySize = width * height;
+    final int uvSize = ySize ~/ 2;
+    final Uint8List nv21 = Uint8List(ySize + uvSize);
+
+    final Plane yPlane = image.planes[0];
+    final int yRowStride = yPlane.bytesPerRow;
+    final int yPixelStride = yPlane.bytesPerPixel ?? 1;
+
+    final Plane uPlane = image.planes[1];
+    final Plane vPlane = image.planes[2];
+    final int uvRowStride = uPlane.bytesPerRow;
+    final int uvPixelStride = uPlane.bytesPerPixel ?? 1;
+
+    int nv21Index = 0;
+
+    for (int y = 0; y < height; y++) {
+      int yIndex = y * yRowStride;
+      for (int x = 0; x < width; x++) {
+        nv21[nv21Index++] = yPlane.bytes[yIndex];
+        yIndex += yPixelStride;
+      }
+    }
+
+    for (int y = 0; y < height ~/ 2; y++) {
+      int uIndex = y * uvRowStride;
+      int vIndex = y * uvRowStride;
+      for (int x = 0; x < width ~/ 2; x++) {
+        nv21[nv21Index++] = vPlane.bytes[vIndex];
+        nv21[nv21Index++] = uPlane.bytes[uIndex];
+        uIndex += uvPixelStride;
+        vIndex += uvPixelStride;
+      }
+    }
+    return nv21;
   }
 }
