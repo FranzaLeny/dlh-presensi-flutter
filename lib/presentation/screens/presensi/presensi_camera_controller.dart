@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -115,10 +116,27 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
         image.width.toDouble(),
         image.height.toDouble(),
       );
+      final orientations = {
+        DeviceOrientation.portraitUp: 0,
+        DeviceOrientation.landscapeLeft: 90,
+        DeviceOrientation.portraitDown: 180,
+        DeviceOrientation.landscapeRight: 270,
+      };
+
+      int rotationCompensation = 0;
+      final camera = cameraController!.description;
+      if (Platform.isIOS) {
+        rotationCompensation = camera.sensorOrientation;
+      } else if (Platform.isAndroid) {
+        final rotationValue = orientations[cameraController!.value.deviceOrientation] ?? 0;
+        if (camera.lensDirection == CameraLensDirection.front) {
+          rotationCompensation = (camera.sensorOrientation + rotationValue) % 360;
+        } else {
+          rotationCompensation = (camera.sensorOrientation - rotationValue + 360) % 360;
+        }
+      }
       final InputImageRotation imageRotation =
-          InputImageRotationValue.fromRawValue(
-            cameraController!.description.sensorOrientation,
-          ) ??
+          InputImageRotationValue.fromRawValue(rotationCompensation) ??
           InputImageRotation.rotation0deg;
 
       final InputImageFormat inputImageFormat =
