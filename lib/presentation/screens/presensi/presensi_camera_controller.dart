@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -19,16 +18,17 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
   TipePresensi cameraJenis = TipePresensi.masuk;
   CameraController? cameraController;
   FaceDetector? faceDetector;
+  
   bool isFaceDetected = false;
-  bool isDetecting = false;
-  int frameCount = 0;
   bool isTakingPicture = false;
   bool loading = false;
   String debugMessage = '';
   
   bool isFaceDetectionEnabled = true;
   bool showBypassToggle = false;
-  int failedDetectionFrames = 0;
+  int failedDetectionFrames = 0; // Not strictly used for static image, but kept for UI compatibility if needed
+
+  String? capturedPhotoPath;
 
   Future<void> savePresensi(
     TipePresensi jenis,
@@ -75,13 +75,13 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       (c) => c.lensDirection == CameraLensDirection.front,
       orElse: () => cameras.first,
     );
+    
+    // We don't strictly need a specific ImageFormatGroup now because we take a picture 
+    // and use JPEG/PNG. But we'll leave it as default to ensure camera initialization succeeds.
     cameraController = CameraController(
       frontCamera,
       ResolutionPreset.medium,
       enableAudio: false,
-      imageFormatGroup: Platform.isAndroid
-          ? ImageFormatGroup.yuv420
-          : ImageFormatGroup.bgra8888,
     );
     await cameraController!.initialize();
 
@@ -94,122 +94,12 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       ),
     );
 
-    frameCount = 0;
     isFaceDetected = false;
-    isDetecting = false;
-
-    await cameraController!.startImageStream((CameraImage image) {
-      if (isDetecting) return;
-      frameCount++;
-      if (frameCount % 5 != 0) return;
-      processCameraImage(image);
-    });
-  }
-
-  Future<void> processCameraImage(CameraImage image) async {
-    if (faceDetector == null || cameraController == null || !mounted) return;
-    isDetecting = true;
-
-    try {
-      final Size imageSize = Size(
-        image.width.toDouble(),
-        image.height.toDouble(),
-      );
-      final orientations = {
-        DeviceOrientation.portraitUp: 0,
-        DeviceOrientation.landscapeLeft: 90,
-        DeviceOrientation.portraitDown: 180,
-        DeviceOrientation.landscapeRight: 270,
-      };
-
-      int rotationCompensation = 0;
-      final camera = cameraController!.description;
-      if (Platform.isIOS) {
-        rotationCompensation = camera.sensorOrientation;
-      } else if (Platform.isAndroid) {
-        final rotationValue = orientations[cameraController!.value.deviceOrientation] ?? 0;
-        if (camera.lensDirection == CameraLensDirection.front) {
-          rotationCompensation = (camera.sensorOrientation + rotationValue) % 360;
-        } else {
-          rotationCompensation = (camera.sensorOrientation - rotationValue + 360) % 360;
-        }
-      }
-      final InputImageRotation imageRotation =
-          InputImageRotationValue.fromRawValue(rotationCompensation) ??
-          InputImageRotation.rotation0deg;
-
-      InputImage inputImage;
-      if (Platform.isAndroid) {
-        Uint8List bitmapBytes;
-        if (image.format.raw == 35) {
-          bitmapBytes = _yuv420ToRgba(image);
-        } else {
-          bitmapBytes = image.planes.first.bytes;
-        }
-        inputImage = InputImage.fromBitmap(
-          bitmap: bitmapBytes,
-          width: image.width,
-          height: image.height,
-          rotation: rotationCompensation,
-        );
-      } else {
-        inputImage = InputImage.fromBytes(
-          bytes: image.planes.first.bytes,
-          metadata: InputImageMetadata(
-            size: imageSize,
-            rotation: imageRotation,
-            format: InputImageFormat.bgra8888,
-            bytesPerRow: image.planes.first.bytesPerRow,
-          ),
-        );
-      }
-
-      final faces = await faceDetector!.processImage(inputImage);
-
-      final hasFace = faces.length == 1;
-
-      if (isFaceDetectionEnabled) {
-        if (!hasFace) {
-          failedDetectionFrames++;
-          if (failedDetectionFrames > 8 && !showBypassToggle) {
-            if (mounted) setState(() => showBypassToggle = true);
-          }
-        } else {
-          failedDetectionFrames = 0;
-        }
-      }
-
-      final newDebugMessage = 'Fmt: ${image.format.raw}, Rot: $rotationCompensation, Face: ${faces.length}';
-
-      if (mounted && (isFaceDetected != hasFace || debugMessage != newDebugMessage)) {
-        setState(() {
-          isFaceDetected = hasFace;
-          debugMessage = newDebugMessage;
-        });
-      }
-    } catch (e, stackTrace) {
-      if (isFaceDetectionEnabled) {
-        failedDetectionFrames++;
-        if (failedDetectionFrames > 8 && !showBypassToggle) {
-          if (mounted) setState(() => showBypassToggle = true);
-        }
-      }
-      if (mounted) {
-        final rawFormat = image.format.raw;
-        final w = image.width;
-        final h = image.height;
-        final bpr = image.planes.isNotEmpty ? image.planes.first.bytesPerRow : 0;
-        final len = image.planes.isNotEmpty ? image.planes.first.bytes.length : 0;
-        final errStr = 'Err: $e\nFmt:$rawFormat Size:${w}x${h} BPR:$bpr Len:$len';
-        if (debugMessage != errStr) {
-          setState(() {
-            debugMessage = errStr;
-          });
-        }
-      }
-    } finally {
-      isDetecting = false;
-    }
+    capturedPhotoPath = null;
+    debugMessage = '';
+    
+    // We no longer startImageStream here!
+    if (mounted) setState(() {});
   }
 
   Future<void> handleTakeSelfie() async {
@@ -217,34 +107,81 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       return;
     }
 
-    if (isFaceDetectionEnabled && !isFaceDetected) {
-      showAlert(
-        'Perhatian',
-        'Wajah tidak terdeteksi atau terdapat lebih dari satu wajah. Pastikan wajah Anda terlihat jelas dalam bingkai kamera.',
-      );
-      return;
-    }
-
     if (isTakingPicture) return;
     isTakingPicture = true;
+
+    setState(() {
+      loading = true;
+      debugMessage = 'Mengambil foto...';
+    });
+
+    try {
+      final photo = await cameraController!.takePicture();
+      final path = photo.path;
+      
+      setState(() {
+        debugMessage = 'Mendeteksi wajah...';
+      });
+
+      // Run static face detection
+      final inputImage = InputImage.fromFilePath(path);
+      final faces = await faceDetector!.processImage(inputImage);
+      final hasFace = faces.length == 1;
+
+      if (mounted) {
+        setState(() {
+          capturedPhotoPath = path;
+          isFaceDetected = hasFace;
+          debugMessage = 'Wajah terdeteksi: $hasFace (${faces.length})';
+        });
+      }
+    } catch (e) {
+      showAlert('Gagal Mengambil Foto', 'Terjadi kesalahan saat mengambil foto selfie. $e');
+      if (mounted) {
+        setState(() {
+          debugMessage = 'Err: $e';
+        });
+      }
+    } finally {
+      isTakingPicture = false;
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  void handleRetakePhoto() {
+    setState(() {
+      capturedPhotoPath = null;
+      isFaceDetected = false;
+      debugMessage = '';
+    });
+  }
+
+  Future<void> handleSubmitPhoto() async {
+    if (capturedPhotoPath == null) return;
+
+    // TODO: Later we can uncomment this to strictly enforce face detection
+    // if (isFaceDetectionEnabled && !isFaceDetected) {
+    //   showAlert(
+    //     'Perhatian',
+    //     'Wajah tidak terdeteksi atau terdapat lebih dari satu wajah. Pastikan wajah Anda terlihat jelas dalam bingkai kamera.',
+    //   );
+    //   return;
+    // }
 
     setState(() => loading = true);
 
     try {
-      if (cameraController!.value.isStreamingImages) {
-        await cameraController!.stopImageStream();
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-      final photo = await cameraController!.takePicture();
+      // Save selfie internally
       final savedPath = await CameraService.saveSelfie(
-        photo.path,
+        capturedPhotoPath!,
         cameraJenis.toDbString(),
       );
 
-      setState(() => showCamera = false);
-      if (cameraController?.value.isStreamingImages == true) {
-        await cameraController?.stopImageStream();
-      }
+      setState(() {
+        showCamera = false;
+        capturedPhotoPath = null;
+      });
+      
       cameraController?.dispose();
       cameraController = null;
       faceDetector?.close();
@@ -261,71 +198,9 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
         );
       }
     } catch (e) {
-      showAlert('Gagal Mengambil Foto', 'Terjadi kesalahan saat mengambil foto selfie. Silakan coba lagi.');
+      showAlert('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan presensi. Silakan coba lagi.');
     } finally {
-      isTakingPicture = false;
       if (mounted) setState(() => loading = false);
     }
-  }
-
-  Uint8List _yuv420ToNv21(CameraImage image) {
-    final int width = image.width;
-    final int height = image.height;
-    final int ySize = width * height;
-    final int uvSize = ySize ~/ 2;
-    final Uint8List nv21 = Uint8List(ySize + uvSize);
-
-    final Plane yPlane = image.planes[0];
-    final int yRowStride = yPlane.bytesPerRow;
-    final int yPixelStride = yPlane.bytesPerPixel ?? 1;
-
-    final Plane uPlane = image.planes[1];
-    final Plane vPlane = image.planes[2];
-    final int uvRowStride = uPlane.bytesPerRow;
-    final int uvPixelStride = uPlane.bytesPerPixel ?? 1;
-
-    int nv21Index = 0;
-
-    for (int y = 0; y < height; y++) {
-      int yIndex = y * yRowStride;
-      for (int x = 0; x < width; x++) {
-        nv21[nv21Index++] = yPlane.bytes[yIndex];
-        yIndex += yPixelStride;
-      }
-    }
-
-    for (int y = 0; y < height ~/ 2; y++) {
-      int uIndex = y * uvRowStride;
-      int vIndex = y * uvRowStride;
-      for (int x = 0; x < width ~/ 2; x++) {
-        nv21[nv21Index++] = vPlane.bytes[vIndex];
-        nv21[nv21Index++] = uPlane.bytes[uIndex];
-        uIndex += uvPixelStride;
-        vIndex += uvPixelStride;
-      }
-    }
-    return nv21;
-  }
-
-  Uint8List _yuv420ToRgba(CameraImage image) {
-    final int width = image.width;
-    final int height = image.height;
-    final int yRowStride = image.planes[0].bytesPerRow;
-    final Uint8List yBytes = image.planes[0].bytes;
-
-    final Uint8List rgba = Uint8List(width * height * 4);
-    int rgbaIndex = 0;
-
-    for (int y = 0; y < height; y++) {
-      int yIndex = y * yRowStride;
-      for (int x = 0; x < width; x++) {
-        final int yValue = yBytes[yIndex++];
-        rgba[rgbaIndex++] = yValue; // R
-        rgba[rgbaIndex++] = yValue; // G
-        rgba[rgbaIndex++] = yValue; // B
-        rgba[rgbaIndex++] = 255;    // A
-      }
-    }
-    return rgba;
   }
 }

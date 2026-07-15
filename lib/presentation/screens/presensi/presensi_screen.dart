@@ -70,6 +70,7 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen>
         debugMessage: debugMessage,
         isFaceDetectionEnabled: isFaceDetectionEnabled,
         showBypassToggle: showBypassToggle,
+        capturedPhotoPath: capturedPhotoPath,
         onToggleFaceDetection: (val) {
           setState(() {
             isFaceDetectionEnabled = val;
@@ -78,14 +79,13 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen>
         onTakeSelfie: handleTakeSelfie,
         onCancel: () async {
           setState(() => showCamera = false);
-          if (cameraController?.value.isStreamingImages == true) {
-            await cameraController?.stopImageStream();
-          }
           cameraController?.dispose();
           cameraController = null;
           faceDetector?.close();
           faceDetector = null;
         },
+        onSubmitPhoto: handleSubmitPhoto,
+        onRetakePhoto: handleRetakePhoto,
       );
     }
 
