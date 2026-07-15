@@ -106,7 +106,7 @@ class ProfilHeaderCard extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           pegawai != null 
-            ? 'NIP: ${pegawai!.nip ?? '-'} | ${pegawai!.jenisPegawai ?? '-'}'
+            ? 'NIP: ${pegawai!.nip} | ${pegawai!.jenisPegawai}'
             : 'Memuat data...',
           textAlign: TextAlign.center,
           style: TextStyle(

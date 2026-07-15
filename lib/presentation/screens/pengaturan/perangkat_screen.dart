@@ -27,8 +27,6 @@ class _PerangkatScreenState extends State<PerangkatScreen> {
     try {
       final keys = await AuthService.listMyApiKeys();
       // Get current device API key ID to highlight it
-      final currentApiKey = await AuthService.getDeviceApiKey();
-      
       if (mounted) {
         setState(() {
           // Urutkan berdasarkan lastRequest (aktivitas terakhir) secara descending

@@ -89,7 +89,7 @@ class PresensiCameraView extends StatelessWidget {
                     Switch(
                       value: isFaceDetectionEnabled,
                       onChanged: onToggleFaceDetection,
-                      activeColor: AppColors.primary,
+                      activeThumbColor: AppColors.primary,
                     ),
                   ],
                 ),
