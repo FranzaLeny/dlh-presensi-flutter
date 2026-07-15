@@ -25,6 +25,10 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
   bool isTakingPicture = false;
   bool loading = false;
   String debugMessage = '';
+  
+  bool isFaceDetectionEnabled = true;
+  bool showBypassToggle = false;
+  int failedDetectionFrames = 0;
 
   Future<void> savePresensi(
     TipePresensi jenis,
@@ -145,11 +149,13 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
           InputImageRotationValue.fromRawValue(rotationCompensation) ??
           InputImageRotation.rotation0deg;
 
-      final InputImageFormat inputImageFormat =
-          InputImageFormatValue.fromRawValue(image.format.raw) ??
-          (Platform.isAndroid
-              ? InputImageFormat.nv21
-              : InputImageFormat.bgra8888);
+      InputImageFormat inputImageFormat;
+      if (Platform.isAndroid && image.format.raw == 35) {
+        inputImageFormat = InputImageFormat.nv21;
+      } else {
+        inputImageFormat = InputImageFormatValue.fromRawValue(image.format.raw) ??
+            (Platform.isAndroid ? InputImageFormat.nv21 : InputImageFormat.bgra8888);
+      }
 
       final inputImage = InputImage.fromBytes(
         bytes: bytes,
@@ -164,6 +170,17 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       final faces = await faceDetector!.processImage(inputImage);
 
       final hasFace = faces.length == 1;
+
+      if (isFaceDetectionEnabled) {
+        if (!hasFace) {
+          failedDetectionFrames++;
+          if (failedDetectionFrames > 8 && !showBypassToggle) {
+            if (mounted) setState(() => showBypassToggle = true);
+          }
+        } else {
+          failedDetectionFrames = 0;
+        }
+      }
 
       final newDebugMessage = 'Fmt: ${image.format.raw}, Rot: $rotationCompensation, Face: ${faces.length}';
 
@@ -193,7 +210,7 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       return;
     }
 
-    if (!isFaceDetected) {
+    if (isFaceDetectionEnabled && !isFaceDetected) {
       showAlert(
         'Perhatian',
         'Wajah tidak terdeteksi atau terdapat lebih dari satu wajah. Pastikan wajah Anda terlihat jelas dalam bingkai kamera.',

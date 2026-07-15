@@ -68,6 +68,13 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen>
         isFaceDetected: isFaceDetected,
         loading: loading,
         debugMessage: debugMessage,
+        isFaceDetectionEnabled: isFaceDetectionEnabled,
+        showBypassToggle: showBypassToggle,
+        onToggleFaceDetection: (val) {
+          setState(() {
+            isFaceDetectionEnabled = val;
+          });
+        },
         onTakeSelfie: handleTakeSelfie,
         onCancel: () async {
           setState(() => showCamera = false);

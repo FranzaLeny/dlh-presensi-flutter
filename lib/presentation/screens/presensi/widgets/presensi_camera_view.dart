@@ -9,6 +9,9 @@ class PresensiCameraView extends StatelessWidget {
   final bool isFaceDetected;
   final bool loading;
   final String debugMessage;
+  final bool isFaceDetectionEnabled;
+  final bool showBypassToggle;
+  final ValueChanged<bool> onToggleFaceDetection;
   final VoidCallback onTakeSelfie;
   final VoidCallback onCancel;
 
@@ -19,6 +22,9 @@ class PresensiCameraView extends StatelessWidget {
     required this.isFaceDetected,
     required this.loading,
     required this.debugMessage,
+    required this.isFaceDetectionEnabled,
+    required this.showBypassToggle,
+    required this.onToggleFaceDetection,
     required this.onTakeSelfie,
     required this.onCancel,
   });
@@ -63,6 +69,33 @@ class PresensiCameraView extends StatelessWidget {
                 ),
               ),
             ),
+          if (showBypassToggle)
+            Positioned(
+              top: debugMessage.isNotEmpty ? 120 : 48,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Deteksi Wajah',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: isFaceDetectionEnabled,
+                      onChanged: onToggleFaceDetection,
+                      activeColor: AppColors.primary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           Positioned(
             left: 0,
             right: 0,
@@ -83,26 +116,32 @@ class PresensiCameraView extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: isFaceDetected
-                          ? AppColors.success.withValues(alpha: 0.8)
-                          : Colors.black54,
+                      color: !isFaceDetectionEnabled
+                          ? Colors.orange.withValues(alpha: 0.8)
+                          : isFaceDetected
+                              ? AppColors.success.withValues(alpha: 0.8)
+                              : Colors.black54,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isFaceDetected
-                              ? Icons.check_circle_rounded
-                              : Icons.warning_amber_rounded,
+                          !isFaceDetectionEnabled
+                              ? Icons.warning_amber_rounded
+                              : isFaceDetected
+                                  ? Icons.check_circle_rounded
+                                  : Icons.warning_amber_rounded,
                           color: Colors.white,
                           size: 16,
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          isFaceDetected
-                              ? 'Wajah Terdeteksi'
-                              : 'Wajah tidak terdeteksi',
+                          !isFaceDetectionEnabled
+                              ? 'Bypass Deteksi Wajah'
+                              : isFaceDetected
+                                  ? 'Wajah Terdeteksi'
+                                  : 'Wajah tidak terdeteksi',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -139,7 +178,7 @@ class PresensiCameraView extends StatelessWidget {
                                   margin: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: isFaceDetected
+                                    color: !isFaceDetectionEnabled || isFaceDetected
                                         ? Colors.white
                                         : Colors.white.withValues(alpha: 0.3),
                                   ),
