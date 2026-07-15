@@ -1,7 +1,7 @@
 name: presensi_dlh
 description: "Aplikasi Presensi Digital Dinas Lingkungan Hidup"
 publish_to: 'none'
-version: 0.0.1-beta.5+1
+version: 0.0.1-beta.6+1
 
 environment:
   sdk: ^3.12.2
