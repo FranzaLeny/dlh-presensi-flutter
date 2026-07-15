@@ -52,26 +52,36 @@ class PresensiCameraView extends StatelessWidget {
               top: 48,
               left: 16,
               right: 16,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.redAccent, width: 1),
-                ),
-                child: Text(
-                  debugMessage,
-                  style: const TextStyle(
-                    color: Colors.greenAccent,
-                    fontSize: 12,
-                    fontFamily: 'monospace',
+              child: FractionallySizedBox(
+                alignment: Alignment.topLeft,
+                widthFactor: 0.75,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    debugMessage,
+                    style: const TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 12,
+                      fontFamily: 'monospace',
+                      shadows: [
+                        Shadow(
+                          color: Colors.black87,
+                          blurRadius: 4,
+                          offset: Offset(1, 1),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           if (showBypassToggle)
             Positioned(
-              top: debugMessage.isNotEmpty ? 120 : 48,
+              top: 48,
               right: 16,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
