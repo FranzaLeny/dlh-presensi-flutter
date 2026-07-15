@@ -24,6 +24,7 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
   int frameCount = 0;
   bool isTakingPicture = false;
   bool loading = false;
+  String debugMessage = '';
 
   Future<void> savePresensi(
     TipePresensi jenis,
@@ -164,12 +165,24 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
 
       final hasFace = faces.length == 1;
 
-      if (mounted && isFaceDetected != hasFace) {
+      final newDebugMessage = 'Fmt: ${image.format.raw}, Rot: $rotationCompensation, Face: ${faces.length}';
+
+      if (mounted && (isFaceDetected != hasFace || debugMessage != newDebugMessage)) {
         setState(() {
           isFaceDetected = hasFace;
+          debugMessage = newDebugMessage;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      if (mounted) {
+        final errStr = e.toString();
+        final shortErr = errStr.length > 60 ? errStr.substring(0, 60) : errStr;
+        if (debugMessage != 'Err: $shortErr') {
+          setState(() {
+            debugMessage = 'Err: $shortErr';
+          });
+        }
+      }
     } finally {
       isDetecting = false;
     }

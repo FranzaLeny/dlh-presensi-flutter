@@ -8,6 +8,7 @@ class PresensiCameraView extends StatelessWidget {
   final TipePresensi cameraJenis;
   final bool isFaceDetected;
   final bool loading;
+  final String debugMessage;
   final VoidCallback onTakeSelfie;
   final VoidCallback onCancel;
 
@@ -17,6 +18,7 @@ class PresensiCameraView extends StatelessWidget {
     required this.cameraJenis,
     required this.isFaceDetected,
     required this.loading,
+    required this.debugMessage,
     required this.onTakeSelfie,
     required this.onCancel,
   });
@@ -36,6 +38,28 @@ class PresensiCameraView extends StatelessWidget {
                   width: cameraController!.value.previewSize?.height ?? 1,
                   height: cameraController!.value.previewSize?.width ?? 1,
                   child: CameraPreview(cameraController!),
+                ),
+              ),
+            ),
+          if (debugMessage.isNotEmpty)
+            Positioned(
+              top: 48,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.redAccent, width: 1),
+                ),
+                child: Text(
+                  debugMessage,
+                  style: const TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                  ),
                 ),
               ),
             ),

@@ -57,7 +57,8 @@ jobs:
         uses: ncipollo/release-action@v1
         if: github.event_name != 'pull_request'
         with:
-          tag: "v1.0.${{ github.run_number }}"
-          name: "Aplikasi Presensi DLH (v1.0.${{ github.run_number }})"
+          tag: "v0.0.1"
+          name: "Aplikasi Presensi DLH (v0.0.1)"
+          allowUpdates: true
           body: "Silakan unduh file `.apk` yang sesuai dengan perangkat Android Anda di bagian **Assets** di bawah ini.\n- Gunakan `HP-Baru` untuk Android modern.\n- Gunakan `HP-Lama` untuk Android versi lama."
           artifacts: "build/app/outputs/flutter-apk/*.apk"
