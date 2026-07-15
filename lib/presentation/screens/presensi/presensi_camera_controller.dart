@@ -79,7 +79,9 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       frontCamera,
       ResolutionPreset.medium,
       enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.bgra8888,
+      imageFormatGroup: Platform.isAndroid
+          ? ImageFormatGroup.yuv420
+          : ImageFormatGroup.bgra8888,
     );
     await cameraController!.initialize();
 
@@ -138,8 +140,14 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
 
       InputImage inputImage;
       if (Platform.isAndroid) {
+        Uint8List bitmapBytes;
+        if (image.format.raw == 35) {
+          bitmapBytes = _yuv420ToRgba(image);
+        } else {
+          bitmapBytes = image.planes.first.bytes;
+        }
         inputImage = InputImage.fromBitmap(
-          bitmap: image.planes.first.bytes,
+          bitmap: bitmapBytes,
           width: image.width,
           height: image.height,
           rotation: rotationCompensation,
@@ -297,5 +305,27 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       }
     }
     return nv21;
+  }
+
+  Uint8List _yuv420ToRgba(CameraImage image) {
+    final int width = image.width;
+    final int height = image.height;
+    final int yRowStride = image.planes[0].bytesPerRow;
+    final Uint8List yBytes = image.planes[0].bytes;
+
+    final Uint8List rgba = Uint8List(width * height * 4);
+    int rgbaIndex = 0;
+
+    for (int y = 0; y < height; y++) {
+      int yIndex = y * yRowStride;
+      for (int x = 0; x < width; x++) {
+        final int yValue = yBytes[yIndex++];
+        rgba[rgbaIndex++] = yValue; // R
+        rgba[rgbaIndex++] = yValue; // G
+        rgba[rgbaIndex++] = yValue; // B
+        rgba[rgbaIndex++] = 255;    // A
+      }
+    }
+    return rgba;
   }
 }
