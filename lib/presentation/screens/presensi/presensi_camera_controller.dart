@@ -80,7 +80,7 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       ResolutionPreset.medium,
       enableAudio: false,
       imageFormatGroup: Platform.isAndroid
-          ? ImageFormatGroup.nv21
+          ? ImageFormatGroup.yuv420
           : ImageFormatGroup.bgra8888,
     );
     await cameraController!.initialize();
