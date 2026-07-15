@@ -69,35 +69,41 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       return;
     }
 
-    final cameras = await availableCameras();
-    final frontCamera = cameras.firstWhere(
-      (c) => c.lensDirection == CameraLensDirection.front,
-      orElse: () => cameras.first,
-    );
-    
-    // We don't strictly need a specific ImageFormatGroup now because we take a picture 
-    // and use JPEG/PNG. But we'll leave it as default to ensure camera initialization succeeds.
-    cameraController = CameraController(
-      frontCamera,
-      ResolutionPreset.medium,
-      enableAudio: false,
-    );
-    await cameraController!.initialize();
+    try {
+      final cameras = await availableCameras();
+      final frontCamera = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.front,
+        orElse: () => cameras.first,
+      );
+      
+      cameraController = CameraController(
+        frontCamera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
+      await cameraController!.initialize();
 
-    faceDetector = FaceDetector(
-      options: FaceDetectorOptions(
-        enableTracking: false,
-        enableClassification: false,
-        enableContours: false,
-        enableLandmarks: false,
-      ),
-    );
+      faceDetector = FaceDetector(
+        options: FaceDetectorOptions(
+          enableTracking: false,
+          enableClassification: false,
+          enableContours: false,
+          enableLandmarks: false,
+        ),
+      );
 
-    isFaceDetected = false;
-    capturedPhotoPath = null;
-    
-    // We no longer startImageStream here!
-    if (mounted) setState(() {});
+      isFaceDetected = false;
+      capturedPhotoPath = null;
+      
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Init Camera Error: $e');
+      showAlert(
+        'Kamera Bermasalah',
+        'Gagal mengakses kamera perangkat Anda. Silakan tutup aplikasi dan coba buka kembali.',
+      );
+      if (mounted) setState(() => showCamera = false);
+    }
   }
 
   Future<void> handleTakeSelfie() async {
@@ -128,7 +134,8 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
         });
       }
     } catch (e) {
-      showAlert('Gagal Mengambil Foto', 'Terjadi kesalahan saat mengambil foto selfie. $e');
+      debugPrint('Take Selfie Error: $e');
+      showAlert('Gagal Mengambil Foto', 'Mohon maaf, kamera gagal menangkap foto. Silakan pastikan memori penyimpanan Anda tidak penuh dan coba lagi.');
     } finally {
       isTakingPicture = false;
       if (mounted) setState(() => loading = false);
