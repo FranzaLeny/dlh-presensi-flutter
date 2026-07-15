@@ -190,7 +190,7 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
           debugMessage = newDebugMessage;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (isFaceDetectionEnabled) {
         failedDetectionFrames++;
         if (failedDetectionFrames > 8 && !showBypassToggle) {
@@ -198,11 +198,14 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
         }
       }
       if (mounted) {
-        final errStr = e.toString();
-        final shortErr = errStr.length > 60 ? errStr.substring(0, 60) : errStr;
-        if (debugMessage != 'Err: $shortErr') {
+        final rawFormat = image.format.raw;
+        final w = image.width;
+        final h = image.height;
+        final bpr = image.planes.first.bytesPerRow;
+        final errStr = 'Err: $e\nFmt:$rawFormat Size:${w}x${h} BPR:$bpr';
+        if (debugMessage != errStr) {
           setState(() {
-            debugMessage = 'Err: $shortErr';
+            debugMessage = errStr;
           });
         }
       }
