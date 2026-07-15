@@ -79,9 +79,7 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       frontCamera,
       ResolutionPreset.medium,
       enableAudio: false,
-      imageFormatGroup: Platform.isAndroid
-          ? ImageFormatGroup.yuv420
-          : ImageFormatGroup.bgra8888,
+      imageFormatGroup: ImageFormatGroup.bgra8888,
     );
     await cameraController!.initialize();
 
@@ -111,17 +109,6 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
     isDetecting = true;
 
     try {
-      Uint8List bytes;
-      if (Platform.isAndroid && image.format.raw == 35) {
-        bytes = _yuv420ToNv21(image);
-      } else {
-        final WriteBuffer allBytes = WriteBuffer();
-        for (final Plane plane in image.planes) {
-          allBytes.putUint8List(plane.bytes);
-        }
-        bytes = allBytes.done().buffer.asUint8List();
-      }
-
       final Size imageSize = Size(
         image.width.toDouble(),
         image.height.toDouble(),
@@ -149,23 +136,25 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
           InputImageRotationValue.fromRawValue(rotationCompensation) ??
           InputImageRotation.rotation0deg;
 
-      InputImageFormat inputImageFormat;
-      if (Platform.isAndroid && image.format.raw == 35) {
-        inputImageFormat = InputImageFormat.nv21;
+      InputImage inputImage;
+      if (Platform.isAndroid) {
+        inputImage = InputImage.fromBitmap(
+          bitmap: image.planes.first.bytes,
+          width: image.width,
+          height: image.height,
+          rotation: rotationCompensation,
+        );
       } else {
-        inputImageFormat = InputImageFormatValue.fromRawValue(image.format.raw) ??
-            (Platform.isAndroid ? InputImageFormat.nv21 : InputImageFormat.bgra8888);
+        inputImage = InputImage.fromBytes(
+          bytes: image.planes.first.bytes,
+          metadata: InputImageMetadata(
+            size: imageSize,
+            rotation: imageRotation,
+            format: InputImageFormat.bgra8888,
+            bytesPerRow: image.planes.first.bytesPerRow,
+          ),
+        );
       }
-
-      final inputImage = InputImage.fromBytes(
-        bytes: bytes,
-        metadata: InputImageMetadata(
-          size: imageSize,
-          rotation: imageRotation,
-          format: inputImageFormat,
-          bytesPerRow: (Platform.isAndroid && image.format.raw == 35) ? image.width : image.planes.first.bytesPerRow,
-        ),
-      );
 
       final faces = await faceDetector!.processImage(inputImage);
 
@@ -201,8 +190,9 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
         final rawFormat = image.format.raw;
         final w = image.width;
         final h = image.height;
-        final bpr = image.planes.first.bytesPerRow;
-        final errStr = 'Err: $e\nFmt:$rawFormat Size:${w}x${h} BPR:$bpr';
+        final bpr = image.planes.isNotEmpty ? image.planes.first.bytesPerRow : 0;
+        final len = image.planes.isNotEmpty ? image.planes.first.bytes.length : 0;
+        final errStr = 'Err: $e\nFmt:$rawFormat Size:${w}x${h} BPR:$bpr Len:$len';
         if (debugMessage != errStr) {
           setState(() {
             debugMessage = errStr;
