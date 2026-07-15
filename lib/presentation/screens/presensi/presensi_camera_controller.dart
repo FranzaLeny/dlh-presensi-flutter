@@ -163,7 +163,7 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
           size: imageSize,
           rotation: imageRotation,
           format: inputImageFormat,
-          bytesPerRow: image.planes.first.bytesPerRow,
+          bytesPerRow: (Platform.isAndroid && image.format.raw == 35) ? image.width : image.planes.first.bytesPerRow,
         ),
       );
 
@@ -191,6 +191,12 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
         });
       }
     } catch (e) {
+      if (isFaceDetectionEnabled) {
+        failedDetectionFrames++;
+        if (failedDetectionFrames > 8 && !showBypassToggle) {
+          if (mounted) setState(() => showBypassToggle = true);
+        }
+      }
       if (mounted) {
         final errStr = e.toString();
         final shortErr = errStr.length > 60 ? errStr.substring(0, 60) : errStr;
