@@ -256,7 +256,7 @@ class PresensiCameraView extends StatelessWidget {
                           ),
                         ),
                         ElevatedButton.icon(
-                          onPressed: loading ? null : onSubmitPhoto,
+                          onPressed: loading || (isFaceDetectionEnabled && !isFaceDetected) ? null : onSubmitPhoto,
                           icon: loading 
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
                               : const Icon(Icons.send_rounded, color: Colors.white),

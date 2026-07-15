@@ -22,7 +22,6 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
   bool isFaceDetected = false;
   bool isTakingPicture = false;
   bool loading = false;
-  String debugMessage = '';
   
   bool isFaceDetectionEnabled = true;
   bool showBypassToggle = false;
@@ -96,7 +95,6 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
 
     isFaceDetected = false;
     capturedPhotoPath = null;
-    debugMessage = '';
     
     // We no longer startImageStream here!
     if (mounted) setState(() {});
@@ -112,17 +110,12 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
 
     setState(() {
       loading = true;
-      debugMessage = 'Mengambil foto...';
     });
 
     try {
       final photo = await cameraController!.takePicture();
       final path = photo.path;
       
-      setState(() {
-        debugMessage = 'Mendeteksi wajah...';
-      });
-
       // Run static face detection
       final inputImage = InputImage.fromFilePath(path);
       final faces = await faceDetector!.processImage(inputImage);
@@ -132,16 +125,10 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
         setState(() {
           capturedPhotoPath = path;
           isFaceDetected = hasFace;
-          debugMessage = 'Wajah terdeteksi: $hasFace (${faces.length})';
         });
       }
     } catch (e) {
       showAlert('Gagal Mengambil Foto', 'Terjadi kesalahan saat mengambil foto selfie. $e');
-      if (mounted) {
-        setState(() {
-          debugMessage = 'Err: $e';
-        });
-      }
     } finally {
       isTakingPicture = false;
       if (mounted) setState(() => loading = false);
@@ -152,7 +139,6 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
     setState(() {
       capturedPhotoPath = null;
       isFaceDetected = false;
-      debugMessage = '';
     });
   }
 
@@ -171,6 +157,18 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
     setState(() => loading = true);
 
     try {
+      final geoState = ref.read(geofenceProvider);
+      
+      // Tambahkan watermark jika lokasi tersedia
+      if (geoState.result != null) {
+        await CameraService.addWatermarkToSelfie(
+          capturedPhotoPath!,
+          geoState.result!.coordinates.latitude,
+          geoState.result!.coordinates.longitude,
+          DateTime.now(),
+        );
+      }
+
       // Save selfie internally
       final savedPath = await CameraService.saveSelfie(
         capturedPhotoPath!,
@@ -187,7 +185,6 @@ mixin PresensiCameraController on ConsumerState<PresensiScreen> {
       faceDetector?.close();
       faceDetector = null;
 
-      final geoState = ref.read(geofenceProvider);
       if (geoState.result != null) {
         await savePresensi(
           cameraJenis,

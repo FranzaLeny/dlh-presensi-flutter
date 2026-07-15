@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK (Hanya ARM64)
+      - name: Build APK (Split per ABI)
         env:
           APP_ID_SUFFIX: .github
           API_URL: ${{ secrets.API_URL }}
@@ -45,11 +45,14 @@ jobs:
         run: |
           API_URL_CLEAN=$(echo "$API_URL" | tr -d '\n' | tr -d '\r')
           BETTER_AUTH_URL_CLEAN=$(echo "$BETTER_AUTH_URL" | tr -d '\n' | tr -d '\r')
-          flutter build apk --release --target-platform android-arm64 --build-name="0.0.1-beta.${{ github.run_number }}" --build-number="${{ github.run_number }}" --dart-define="API_URL=$API_URL_CLEAN" --dart-define="BETTER_AUTH_URL=$BETTER_AUTH_URL_CLEAN"
+          flutter build apk --release --split-per-abi --build-name="0.0.1-beta.${{ github.run_number }}" --build-number="${{ github.run_number }}" --dart-define="API_URL=$API_URL_CLEAN" --dart-define="BETTER_AUTH_URL=$BETTER_AUTH_URL_CLEAN"
 
       - name: Ubah Nama File APK
         run: |
-          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/dlh-presensi-v0.0.1-beta.${{ github.run_number }}-arm64.apk
+          cd build/app/outputs/flutter-apk/
+          for file in app-*-release.apk; do
+            mv "$file" "dlh-presensi-v0.0.1-beta.${{ github.run_number }}-${file#app-}"
+          done
 
       - name: Publish ke Halaman Utama GitHub (Release)
         uses: ncipollo/release-action@v1

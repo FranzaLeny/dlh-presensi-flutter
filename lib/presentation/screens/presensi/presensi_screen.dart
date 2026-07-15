@@ -67,7 +67,6 @@ class _PresensiScreenState extends ConsumerState<PresensiScreen>
         cameraJenis: cameraJenis,
         isFaceDetected: isFaceDetected,
         loading: loading,
-        debugMessage: debugMessage,
         isFaceDetectionEnabled: isFaceDetectionEnabled,
         showBypassToggle: showBypassToggle,
         capturedPhotoPath: capturedPhotoPath,

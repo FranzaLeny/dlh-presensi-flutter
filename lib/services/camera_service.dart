@@ -1,11 +1,14 @@
 // ====================================
-// Camera Service — Selfie Capture
+// Camera Service — Selfie Capture & Watermark
 // ====================================
 
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:image/image.dart' as img;
 
 const _selfieDirName = 'selfies';
 
@@ -20,6 +23,84 @@ class CameraService {
       await selfieDir.create(recursive: true);
     }
     return selfieDir;
+  }
+
+  /// Menambahkan watermark ke file gambar (berjalan di background isolate agar UI tidak lag)
+  static Future<void> addWatermarkToSelfie(
+    String photoPath, 
+    double lat, 
+    double lon, 
+    DateTime timestamp
+  ) async {
+    // Jalankan komputasi gambar berat di Isolate menggunakan compute()
+    await compute(_processWatermark, {
+      'path': photoPath,
+      'lat': lat,
+      'lon': lon,
+      'timestamp': timestamp,
+    });
+  }
+
+  // Fungsi statis murni untuk dijalankan di Isolate
+  static void _processWatermark(Map<String, dynamic> data) {
+    final String photoPath = data['path'];
+    final double lat = data['lat'];
+    final double lon = data['lon'];
+    final DateTime timestamp = data['timestamp'];
+
+    final file = File(photoPath);
+    if (!file.existsSync()) return;
+
+    final bytes = file.readAsBytesSync();
+    final img.Image? image = img.decodeImage(bytes);
+    if (image == null) return;
+
+    final dateFormatter = DateFormat('dd MMM yyyy, HH:mm:ss');
+    final dateStr = dateFormatter.format(timestamp);
+    final locationStr = 'Lat: $lat, Lon: $lon';
+
+    // Draw background rectangle at the bottom
+    final padding = 20;
+    final textHeight = 60; // Approximate height for two lines of text
+    final bgY1 = image.height - textHeight - (padding * 2);
+    final bgY2 = image.height;
+    
+    // Draw semi-transparent black background
+    img.fillRect(
+      image,
+      x1: 0,
+      y1: bgY1,
+      x2: image.width,
+      y2: bgY2,
+      color: img.ColorRgba8(0, 0, 0, 150), // Semi-transparent black
+    );
+
+    // Draw text
+    final textX = 20;
+    final textY1 = bgY1 + padding;
+    final textY2 = textY1 + 30; // 30px spacing
+
+    img.drawString(
+      image,
+      dateStr,
+      font: img.arial24,
+      x: textX,
+      y: textY1,
+      color: img.ColorRgb8(255, 255, 255), // White
+    );
+    
+    img.drawString(
+      image,
+      locationStr,
+      font: img.arial24,
+      x: textX,
+      y: textY2,
+      color: img.ColorRgb8(255, 255, 255), // White
+    );
+
+    // Encode and overwrite the file
+    final encoded = img.encodeJpg(image, quality: 85);
+    file.writeAsBytesSync(encoded);
   }
 
   /// Simpan foto selfie ke filesystem lokal
