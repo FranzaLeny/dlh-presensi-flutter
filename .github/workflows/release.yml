@@ -37,6 +37,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Extract Version
+        run: |
+          FULL_VERSION=$(grep '^version: ' pubspec.yaml | awk '{print $2}')
+          BASE_VERSION=$(echo $FULL_VERSION | cut -d '+' -f 1)
+          echo "APP_VERSION=$BASE_VERSION" >> $GITHUB_ENV
+
       - name: Setup Android signing
         run: |
           echo "${{ secrets.KEYSTORE }}" | base64 --decode > android/upload-keystore.jks
@@ -52,21 +58,21 @@ jobs:
         run: |
           API_URL_CLEAN=$(echo "$API_URL" | tr -d '\n' | tr -d '\r')
           BETTER_AUTH_URL_CLEAN=$(echo "$BETTER_AUTH_URL" | tr -d '\n' | tr -d '\r')
-          flutter build apk --release --split-per-abi --build-name="1.0.0-beta.0" --build-number="${{ github.run_number }}" --dart-define="API_URL=$API_URL_CLEAN" --dart-define="BETTER_AUTH_URL=$BETTER_AUTH_URL_CLEAN"
+          flutter build apk --release --split-per-abi --build-number="${{ github.run_number }}" --dart-define="API_URL=$API_URL_CLEAN" --dart-define="BETTER_AUTH_URL=$BETTER_AUTH_URL_CLEAN"
 
       - name: Ubah Nama File APK
         run: |
-          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/dlh-presensi-HP-Baru-arm64-v${{ github.run_number }}.apk
-          mv build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/dlh-presensi-HP-Lama-arm32-v${{ github.run_number }}.apk
-          mv build/app/outputs/flutter-apk/app-x86_64-release.apk build/app/outputs/flutter-apk/dlh-presensi-Emulator-x86-v${{ github.run_number }}.apk
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/dlh-presensi-HP-Baru-arm64-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk
+          mv build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/dlh-presensi-HP-Lama-arm32-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk
+          mv build/app/outputs/flutter-apk/app-x86_64-release.apk build/app/outputs/flutter-apk/dlh-presensi-Emulator-x86-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk
 
       - name: Publish ke Halaman Utama GitHub (Release)
         uses: ncipollo/release-action@v1
         if: github.event_name != 'pull_request'
         with:
-          tag: "v1.0.0-beta.0.${{ github.run_number }}"
-          name: "v1.0.0-beta.0.${{ github.run_number }}"
+          tag: "v${{ env.APP_VERSION }}.${{ github.run_number }}"
+          name: "v${{ env.APP_VERSION }}.${{ github.run_number }}"
           prerelease: true
           allowUpdates: true
-          body: "Silakan unduh file `.apk` versi beta untuk perangkat Android (ARM64)."
+          body: "Silakan unduh file `.apk` versi ${{ env.APP_VERSION }} untuk perangkat Android."
           artifacts: "build/app/outputs/flutter-apk/*.apk"
