@@ -1,4 +1,4 @@
-name: Flutter Build APK
+name: Flutter Release APK
 
 on:
   push:
@@ -25,27 +25,34 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: "zulu"
+          java-version: "17"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: "stable"
           cache: true
 
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Setup Android signing
+        run: |
+          echo "${{ secrets.KEYSTORE }}" | base64 --decode > android/upload-keystore.jks
+          echo "storePassword=${{ secrets.STORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> android/key.properties
+          echo "storeFile=upload-keystore.jks" >> android/key.properties
+
       - name: Build APK (Split per ABI)
         env:
-          APP_ID_SUFFIX: .github
           API_URL: ${{ secrets.API_URL }}
           BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
         run: |
           API_URL_CLEAN=$(echo "$API_URL" | tr -d '\n' | tr -d '\r')
           BETTER_AUTH_URL_CLEAN=$(echo "$BETTER_AUTH_URL" | tr -d '\n' | tr -d '\r')
-          flutter build apk --release --split-per-abi --build-name="0.0.1-beta.${{ github.run_number }}" --build-number="${{ github.run_number }}" --dart-define="API_URL=$API_URL_CLEAN" --dart-define="BETTER_AUTH_URL=$BETTER_AUTH_URL_CLEAN"
+          flutter build apk --release --split-per-abi --build-name="1.0.0-beta.0" --build-number="${{ github.run_number }}" --dart-define="API_URL=$API_URL_CLEAN" --dart-define="BETTER_AUTH_URL=$BETTER_AUTH_URL_CLEAN"
 
       - name: Ubah Nama File APK
         run: |
@@ -57,8 +64,8 @@ jobs:
         uses: ncipollo/release-action@v1
         if: github.event_name != 'pull_request'
         with:
-          tag: "v0.0.1-beta.${{ github.run_number }}"
-          name: "v0.0.1-beta.${{ github.run_number }}"
+          tag: "v1.0.0-beta.0.${{ github.run_number }}"
+          name: "v1.0.0-beta.0.${{ github.run_number }}"
           prerelease: true
           allowUpdates: true
           body: "Silakan unduh file `.apk` versi beta untuk perangkat Android (ARM64)."

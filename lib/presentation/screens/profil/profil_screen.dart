@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:io';
 
 import '../../../core/constants/app_colors.dart';
@@ -25,11 +26,22 @@ class _ProfilScreenState extends State<ProfilScreen> {
   bool _loading = true;
   bool _loggingOut = false;
   bool _isUploadingPhoto = false;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _appVersion = info.version;
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -271,7 +283,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
               // ── Footer ────────────────────────────────────────
               Center(
                 child: Text(
-                  'DigiLH v1.0 • Offline-First',
+                  _appVersion.isEmpty ? 'DigiLH' : 'DigiLH v$_appVersion',
                   style: TextStyle(fontSize: 12, color: subtextColor),
                 ),
               ),

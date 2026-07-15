@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/error_utils.dart';
@@ -22,6 +23,22 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _loading = false;
+  String _appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _appVersion = info.version;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -163,7 +180,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // ── Footer ──────────────────────────────────────
                   Text(
-                    'DigiLH v1.0 • Offline-First',
+                    _appVersion.isEmpty ? 'DigiLH' : 'DigiLH v$_appVersion',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.white.withValues(alpha: 0.3),

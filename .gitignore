@@ -49,3 +49,9 @@ app.*.map.json
 docs/screenshoot/
 !.env.example
 /notes
+
+# Keystore (SANGAT RAHASIA - JANGAN DI-COMMIT)
+*.jks
+*.keystore
+keystore.txt
+android/key.properties
