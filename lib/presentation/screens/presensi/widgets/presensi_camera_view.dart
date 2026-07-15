@@ -9,7 +9,6 @@ class PresensiCameraView extends StatelessWidget {
   final TipePresensi cameraJenis;
   final bool isFaceDetected;
   final bool loading;
-  final String debugMessage;
   final bool isFaceDetectionEnabled;
   final bool showBypassToggle;
   final String? capturedPhotoPath;
@@ -25,7 +24,6 @@ class PresensiCameraView extends StatelessWidget {
     required this.cameraJenis,
     required this.isFaceDetected,
     required this.loading,
-    required this.debugMessage,
     required this.isFaceDetectionEnabled,
     required this.showBypassToggle,
     required this.capturedPhotoPath,
@@ -67,39 +65,7 @@ class PresensiCameraView extends StatelessWidget {
               ),
             ),
 
-          // Debug Message Overlay
-          if (debugMessage.isNotEmpty)
-            Positioned(
-              top: 48,
-              left: 16,
-              right: 16,
-              child: FractionallySizedBox(
-                alignment: Alignment.topLeft,
-                widthFactor: 0.75,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    debugMessage,
-                    style: const TextStyle(
-                      color: Colors.greenAccent,
-                      fontSize: 12,
-                      fontFamily: 'monospace',
-                      shadows: [
-                        Shadow(
-                          color: Colors.black87,
-                          blurRadius: 4,
-                          offset: Offset(1, 1),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
+
 
           // Face Detection Bypass Toggle
           if (showBypassToggle)
