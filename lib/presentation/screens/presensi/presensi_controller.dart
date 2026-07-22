@@ -170,11 +170,9 @@ mixin PresensiController
       }
       return (isLibur: false, nama: null);
     } else {
-      final isWeekend =
-          dayOfWeek == DateTime.saturday || dayOfWeek == DateTime.sunday;
-      if (isWeekend) {
-        return (isLibur: true, nama: 'Libur Hari ${_getNamaHari(dayOfWeek)}');
-      }
+      // Perubahan Logika API Presensi (22 Juli 2026):
+      // Sabtu dan Minggu tidak lagi dianggap libur wajib secara otomatis.
+      // Penentuan hari libur sepenuhnya mengikuti konfigurasi harian (jadwalHarian) atau Hari Libur Nasional / Cuti Bersama.
       return (isLibur: false, nama: null);
     }
   }

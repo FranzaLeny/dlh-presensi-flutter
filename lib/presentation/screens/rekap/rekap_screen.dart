@@ -78,8 +78,6 @@ class _RekapScreenState extends State<RekapScreen> {
     List<PresensiLog> dayLogs,
   ) {
     final parsedDate = DateTime.parse(dateStr);
-    final weekday = parsedDate.weekday;
-    final isWeekend = weekday == DateTime.saturday || weekday == DateTime.sunday;
 
     // 1. Cari Pengaturan Presensi
     PengaturanPresensi? activeSetting;
@@ -127,11 +125,11 @@ class _RekapScreenState extends State<RekapScreen> {
     }
 
     final isHolidayDate = _holidays.any((h) => h.tanggal == dateStr);
-    bool isLibur = isWeekend || isHolidayDate;
+    bool isLibur = isHolidayDate;
     if (isLiburOverride == 1) {
       isLibur = true;
     } else if (isLiburOverride == 0 && !isHolidayDate) {
-      isLibur = false; // Weekend override to workday
+      isLibur = false;
     }
 
     // 2. Hitung jamKerjaEfektif

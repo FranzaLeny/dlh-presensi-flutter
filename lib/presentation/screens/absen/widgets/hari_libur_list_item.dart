@@ -80,6 +80,17 @@ class HariLiburListItem extends StatelessWidget {
     }
 
     final isLiburNasional = firstItem.tipe == 'libur_nasional';
+    final isCutiBersama = firstItem.tipe == 'cuti_bersama';
+
+    final Color itemColor = isLiburNasional
+        ? Colors.red
+        : (isCutiBersama ? Colors.orange : Colors.blue);
+    final IconData itemIcon = isLiburNasional
+        ? Icons.calendar_month_rounded
+        : (isCutiBersama ? Icons.beach_access_rounded : Icons.event_note_rounded);
+    final String labelText = isLiburNasional
+        ? 'Libur Nasional'
+        : (isCutiBersama ? 'Cuti Bersama' : 'Libur Jadwal');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -96,14 +107,12 @@ class HariLiburListItem extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isLiburNasional 
-                  ? Colors.red.withValues(alpha: 0.1) 
-                  : Colors.orange.withValues(alpha: 0.1),
+                color: itemColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                isLiburNasional ? Icons.calendar_month_rounded : Icons.beach_access_rounded,
-                color: isLiburNasional ? Colors.red : Colors.orange,
+                itemIcon,
+                color: itemColor,
                 size: 24,
               ),
             ),
@@ -129,17 +138,15 @@ class HariLiburListItem extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: isLiburNasional 
-                            ? Colors.red.withValues(alpha: 0.1) 
-                            : Colors.orange.withValues(alpha: 0.1),
+                          color: itemColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          isLiburNasional ? 'Libur Nasional' : 'Cuti Bersama',
+                          labelText,
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: isLiburNasional ? Colors.red : Colors.orange,
+                            color: itemColor,
                           ),
                         ),
                       ),

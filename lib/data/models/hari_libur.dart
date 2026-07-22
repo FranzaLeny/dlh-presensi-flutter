@@ -6,7 +6,7 @@ class HariLibur {
   final String id;
   final String tanggal; // format: YYYY-MM-DD
   final String nama;
-  final String tipe; // 'libur_nasional' | 'cuti_bersama'
+  final String tipe; // 'libur_nasional' | 'cuti_bersama' | 'libur_jadwal'
   final String? keterangan;
   final String? dokumenUrl;
   final String? createdAt;

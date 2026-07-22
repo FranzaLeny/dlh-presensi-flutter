@@ -37,7 +37,8 @@ class RekapDetailCard extends StatelessWidget {
       case 'libur':
         return 'Hari Libur';
       case 'tidak_lengkap':
-        return 'Tidak Lengkap';
+      case 'alpa':
+        return 'Tanpa Berita';
       case 'sakit':
         return 'Sakit';
       case 'tugas':
@@ -45,7 +46,7 @@ class RekapDetailCard extends StatelessWidget {
       case 'cuti':
         return 'Cuti';
       default:
-        return 'Tanpa Keterangan';
+        return 'Tanpa Berita';
     }
   }
 
@@ -304,12 +305,19 @@ class RekapDetailCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: (hariLibur!.tipe == 'libur_nasional' ? Colors.red : Colors.orange).withValues(alpha: 0.15),
+                    color: (hariLibur!.tipe == 'libur_nasional'
+                            ? Colors.red
+                            : (hariLibur!.tipe == 'cuti_bersama' ? Colors.orange : Colors.blue))
+                        .withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    hariLibur!.tipe == 'libur_nasional' ? Icons.calendar_month_rounded : Icons.beach_access_rounded,
-                    color: hariLibur!.tipe == 'libur_nasional' ? Colors.red : Colors.orange,
+                    hariLibur!.tipe == 'libur_nasional'
+                        ? Icons.calendar_month_rounded
+                        : (hariLibur!.tipe == 'cuti_bersama' ? Icons.beach_access_rounded : Icons.event_note_rounded),
+                    color: hariLibur!.tipe == 'libur_nasional'
+                        ? Colors.red
+                        : (hariLibur!.tipe == 'cuti_bersama' ? Colors.orange : Colors.blue),
                     size: 20,
                   ),
                 ),

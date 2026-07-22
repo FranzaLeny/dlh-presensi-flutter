@@ -17,5 +17,5 @@ class AppConfig {
   static const int httpTimeoutSeconds = 15;
 
   /// Versi aplikasi
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.0.0-beta.2';
 }
