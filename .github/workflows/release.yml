@@ -106,11 +106,23 @@ jobs:
 
           artifacts: "build/app/outputs/flutter-apk/*.apk"
 
+      - name: Format Google Drive Credentials
+        if: github.event_name != 'pull_request'
+        env:
+          GDRIVE_SECRET: ${{ secrets.GDRIVE_CREDENTIALS }}
+        run: |
+          if echo "$GDRIVE_SECRET" | base64 --decode >/dev/null 2>&1; then
+            echo "GDRIVE_B64=$GDRIVE_SECRET" >> $GITHUB_ENV
+          else
+            B64=$(echo -n "$GDRIVE_SECRET" | base64 -w 0)
+            echo "GDRIVE_B64=$B64" >> $GITHUB_ENV
+          fi
+
       - name: Upload APK ke Google Drive (ARM64)
         uses: adityak74/google-drive-upload-git-action@v0.1
         if: github.event_name != 'pull_request'
         with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
+          credentials: ${{ env.GDRIVE_B64 }}
           filename: "build/app/outputs/flutter-apk/DigiLH-android-new-arm64-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk"
           folderId: "1C1JlytzFO1GdVkcjUsRP4MO92x_EclEU"
           overwrite: "true"
@@ -119,7 +131,7 @@ jobs:
         uses: adityak74/google-drive-upload-git-action@v0.1
         if: github.event_name != 'pull_request'
         with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
+          credentials: ${{ env.GDRIVE_B64 }}
           filename: "build/app/outputs/flutter-apk/DigiLH-android-old-arm32-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk"
           folderId: "1C1JlytzFO1GdVkcjUsRP4MO92x_EclEU"
           overwrite: "true"
@@ -128,7 +140,7 @@ jobs:
         uses: adityak74/google-drive-upload-git-action@v0.1
         if: github.event_name != 'pull_request'
         with:
-          credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
+          credentials: ${{ env.GDRIVE_B64 }}
           filename: "build/app/outputs/flutter-apk/DigiLH-x86-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk"
           folderId: "1C1JlytzFO1GdVkcjUsRP4MO92x_EclEU"
           overwrite: "true"
