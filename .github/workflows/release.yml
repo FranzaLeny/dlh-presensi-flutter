@@ -108,7 +108,7 @@ jobs:
 
       - name: Upload APK ke Google Drive (ARM64)
         uses: adityak74/google-drive-upload-git-action@v0.1
-        if: github.event_name != 'pull_request' && secrets.GDRIVE_CREDENTIALS != ''
+        if: github.event_name != 'pull_request'
         with:
           credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
           filename: "build/app/outputs/flutter-apk/DigiLH-android-new-arm64-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk"
@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload APK ke Google Drive (ARM32)
         uses: adityak74/google-drive-upload-git-action@v0.1
-        if: github.event_name != 'pull_request' && secrets.GDRIVE_CREDENTIALS != ''
+        if: github.event_name != 'pull_request'
         with:
           credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
           filename: "build/app/outputs/flutter-apk/DigiLH-android-old-arm32-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk"
@@ -126,7 +126,7 @@ jobs:
 
       - name: Upload APK ke Google Drive (x86_64)
         uses: adityak74/google-drive-upload-git-action@v0.1
-        if: github.event_name != 'pull_request' && secrets.GDRIVE_CREDENTIALS != ''
+        if: github.event_name != 'pull_request'
         with:
           credentials: ${{ secrets.GDRIVE_CREDENTIALS }}
           filename: "build/app/outputs/flutter-apk/DigiLH-x86-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk"
