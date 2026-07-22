@@ -106,8 +106,25 @@ jobs:
 
           artifacts: "build/app/outputs/flutter-apk/*.apk"
 
-      - name: Format Google Drive Credentials
+      - name: Simpan Artifact APK
         if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-artifacts
+          path: build/app/outputs/flutter-apk/*.apk
+
+  upload-gdrive:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    steps:
+      - name: Unduh Artifact APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-artifacts
+          path: apks
+
+      - name: Format Google Drive Credentials
         env:
           GDRIVE_SECRET: ${{ secrets.GDRIVE_CREDENTIALS }}
         run: |
@@ -118,29 +135,10 @@ jobs:
             echo "GDRIVE_B64=$B64" >> $GITHUB_ENV
           fi
 
-      - name: Upload APK ke Google Drive (ARM64)
+      - name: Upload APK ke Google Drive
         uses: adityak74/google-drive-upload-git-action@v0.1
-        if: github.event_name != 'pull_request'
         with:
           credentials: ${{ env.GDRIVE_B64 }}
-          filename: "build/app/outputs/flutter-apk/DigiLH-android-new-arm64-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk"
-          folderId: "1C1JlytzFO1GdVkcjUsRP4MO92x_EclEU"
-          overwrite: "true"
-
-      - name: Upload APK ke Google Drive (ARM32)
-        uses: adityak74/google-drive-upload-git-action@v0.1
-        if: github.event_name != 'pull_request'
-        with:
-          credentials: ${{ env.GDRIVE_B64 }}
-          filename: "build/app/outputs/flutter-apk/DigiLH-android-old-arm32-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk"
-          folderId: "1C1JlytzFO1GdVkcjUsRP4MO92x_EclEU"
-          overwrite: "true"
-
-      - name: Upload APK ke Google Drive (x86_64)
-        uses: adityak74/google-drive-upload-git-action@v0.1
-        if: github.event_name != 'pull_request'
-        with:
-          credentials: ${{ env.GDRIVE_B64 }}
-          filename: "build/app/outputs/flutter-apk/DigiLH-x86-v${{ env.APP_VERSION }}.${{ github.run_number }}.apk"
+          filename: "apks/*.apk"
           folderId: "1C1JlytzFO1GdVkcjUsRP4MO92x_EclEU"
           overwrite: "true"
