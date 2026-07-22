@@ -124,6 +124,16 @@ jobs:
           name: apk-artifacts
           path: apks
 
+      - name: Cari File APK
+        id: find_apks
+        run: |
+          ARM64=$(find apks -name "*arm64*" | head -n 1)
+          ARM32=$(find apks -name "*arm32*" | head -n 1)
+          X86=$(find apks -name "*x86*" | head -n 1)
+          echo "arm64=$ARM64" >> $GITHUB_OUTPUT
+          echo "arm32=$ARM32" >> $GITHUB_OUTPUT
+          echo "x86=$X86" >> $GITHUB_OUTPUT
+
       - name: Format Google Drive Credentials
         env:
           GDRIVE_SECRET: ${{ secrets.GDRIVE_CREDENTIALS }}
@@ -135,10 +145,29 @@ jobs:
             echo "GDRIVE_B64=$B64" >> $GITHUB_ENV
           fi
 
-      - name: Upload APK ke Google Drive
+      - name: Upload ARM64 APK ke Google Drive
+        if: steps.find_apks.outputs.arm64 != ''
         uses: adityak74/google-drive-upload-git-action@v0.1
         with:
           credentials: ${{ env.GDRIVE_B64 }}
-          filename: "apks/*.apk"
+          filename: ${{ steps.find_apks.outputs.arm64 }}
+          folderId: "1C1JlytzFO1GdVkcjUsRP4MO92x_EclEU"
+          overwrite: "true"
+
+      - name: Upload ARM32 APK ke Google Drive
+        if: steps.find_apks.outputs.arm32 != ''
+        uses: adityak74/google-drive-upload-git-action@v0.1
+        with:
+          credentials: ${{ env.GDRIVE_B64 }}
+          filename: ${{ steps.find_apks.outputs.arm32 }}
+          folderId: "1C1JlytzFO1GdVkcjUsRP4MO92x_EclEU"
+          overwrite: "true"
+
+      - name: Upload x86_64 APK ke Google Drive
+        if: steps.find_apks.outputs.x86 != ''
+        uses: adityak74/google-drive-upload-git-action@v0.1
+        with:
+          credentials: ${{ env.GDRIVE_B64 }}
+          filename: ${{ steps.find_apks.outputs.x86 }}
           folderId: "1C1JlytzFO1GdVkcjUsRP4MO92x_EclEU"
           overwrite: "true"
